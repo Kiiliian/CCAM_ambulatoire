@@ -863,7 +863,7 @@ CCAM_1 <- CCAM[CCAM$code_cat == 4,c("acte","part_actes_cat")]
 CCAM_1 <- CCAM_1 %>% distinct()
 names(CCAM_1) <- c("acte","part_actes_cat_4")
 CCAM <- left_join(CCAM, CCAM_1, by ="acte")
-CCAM$part_actes_cat_3[is.na(CCAM$part_actes_cat_3)] <- 0
+CCAM$part_actes_cat_4[is.na(CCAM$part_actes_cat_4)] <- 0
 
 
 ##Enregistrement de la base de données
@@ -876,6 +876,7 @@ write.csv(CCAM,"C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/ccam_analyses
 #ANALYSE GLOBALE
 #############################################################################################################################################
 
+##Reformatter la base et l'enregistrer
 
 ##Chargement base de données
 CCAM <- read_csv("C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/ccam_analyses.csv")
@@ -1010,7 +1011,11 @@ summary(lm(part_ambu ~ cat_libelle, CCAM_select, weights = nb_actes))
 summary(lm(part_ambu ~ annee, CCAM_select, weights = nb_actes))
 
 #Controle par la part de
-summary(lm(dms_globale ~ cat_libelle + annee + part_actes_cat*cat_libelle, CCAM))
+summary(lm(part_ambu ~ cat_libelle + part_actes_cat*cat_libelle, CCAM))
+
+summary(lm(dms_globale ~ cat_libelle + annee + annee*cat_libelle + part_actes_cat*cat_libelle, CCAM))
+summary(lm(dms_globale ~ cat_libelle + annee + annee*cat_libelle + part_actes_cat*cat_libelle + part_actes_cat*cat_libelle*annee, CCAM))
+
 #SAns controle
 summary(lm(dms_globale ~ cat_libelle + annee , CCAM))
 summary(lm(dms_globale ~ cat_libelle + nb_actes, CCAM))
