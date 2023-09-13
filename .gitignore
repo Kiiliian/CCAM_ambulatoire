@@ -1,3 +1,13 @@
+#Donnees
+*.csv
+*.xls
+*.xlsx
+*.zip
+*.7z
+
+#Cartes
+*.rds
+
 # History files
 .Rhistory
 .Rapp.history
@@ -5,6 +15,7 @@
 # Session Data files
 .RData
 .RDataTmp
+.RDataTmp1
 
 # User-specific files
 .Ruserdata
@@ -20,6 +31,7 @@
 
 # RStudio files
 .Rproj.user/
+.Rproj
 
 # produced vignettes
 vignettes/*.html
