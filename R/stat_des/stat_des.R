@@ -465,8 +465,23 @@ maxima <- function(colonne, agrega, rs_libelle, nombre, var_selection, selection
   }
 }
 
-
-
+reg_cluster <- function(formula, weights, cluster, var_selection, selection){
+  temp <- CCAM
+  if(!is.na(var_selection)){
+    names(temp)[names(temp) == var_selection] <- "var_selection"
+    temp <- temp[temp$var_selection == selection,]
+  }
+  names(temp)[names(temp) == weights] <- "weights"
+  
+  regression <- lm.cluster( data = temp, formula = formula, weights = temp$weights, cluster = cluster)
+  
+  print("Avec cluster")
+  print(summary(regression))
+  
+  print("Sans cluster")
+  print(summary(regression$lm_res))
+  return(regression)
+}
 
 
 
@@ -876,7 +891,6 @@ write.csv(CCAM,"C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/ccam_analyses
 #ANALYSE GLOBALE
 #############################################################################################################################################
 
-##Reformatter la base et l'enregistrer
 
 ##Chargement base de données
 CCAM <- read_csv("C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/ccam_analyses.csv")
@@ -889,8 +903,17 @@ names(CCAM)[names(CCAM)=="part_ambu"] <- "part_ambu_tous_etab"
 
 CCAM$part_ambu <- CCAM$nb_sej_0_nuit / CCAM$nb_actes * 100
 
+#Durée moyenne de séjour
+#Conversion en numérique
+CCAM$dms_globale <- gsub(",",".", CCAM$dms_globale)
+CCAM$dms_globale <- as.numeric(CCAM$dms_globale)
+
+#Colonne pour pondérer la dms par le nombres d'actes
+CCAM$actes_dms <- CCAM$dms_globale*CCAM$nb_actes
 
 
+
+########################################
 ##Part d'actes en ambulatoire
 
 #Somme des actes en ambu
@@ -908,12 +931,7 @@ print(xtable(table_actes_ambu, caption = "Pourcentage d'actes effectués en ambu
 
 ###Durée moyenne de séjour 
 
-#Conversion en numérique
-CCAM$dms_globale <- gsub(",",".", CCAM$dms_globale)
-CCAM$dms_globale <- as.numeric(CCAM$dms_globale)
 
-#Colonne pour pondérer la dms par le nombres d'actes
-CCAM$actes_dms <- CCAM$dms_globale*CCAM$nb_actes
 #Somme des actes*dms
 table_actes_dms <- description_agrega(sum, "actes_dms", "cat_libelle", "annee", NA, NA, "ID", sum, "test", TRUE)
 #Somme des nombres d'actes
@@ -957,6 +975,13 @@ for (x in names(table_actes_dms)){
 print(xtable(table_actes_dms, caption = "Durée moyenne des séjours en hopitaux"), caption.placement = "top")
 
 
+#####################################################"
+
+#### On réduit la base aux actes sélectionné
+
+CCAM_save <- CCAM
+CCAM <- CCAM[CCAM$selection ==1,]
+
 #Seuil de participation pour les catégories
 
 #Fonction
@@ -969,11 +994,99 @@ acte_tout_cat_parti <- function(part){
 }
   
 #Participation d'au moins 15%
+CCAM$acte_cat_05 <- acte_tout_cat_parti(.05) & (CCAM$selection == TRUE)
+CCAM$acte_cat_10 <- acte_tout_cat_parti(.1) & (CCAM$selection == TRUE)
 CCAM$acte_cat_15 <- acte_tout_cat_parti(.15) & (CCAM$selection == TRUE)
 CCAM$acte_cat_20 <- acte_tout_cat_parti(.2) & (CCAM$selection == TRUE)
 
+#################################
 
-###Durée moyenne de séjour 
+
+###  5%
+
+
+#Somme des actes*dms
+table_actes_dms <- description_agrega(sum, "actes_dms", "cat_libelle", "annee", "acte_cat_05", 1, "ID", sum, "test", TRUE)
+#Somme des nombres d'actes
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", "acte_cat_05", 1, "ID", sum, "test", TRUE)
+#On divise le premier tableau par le deuxieme
+for (x in names(table_actes_dms)){
+  table_actes_dms[x] <- table_actes_dms[x]/table_actes[x]
+}
+#Conversion en latex
+print(xtable(table_actes_dms, caption = "Durée moyenne des séjours en hopitaux (> 5%)"), caption.placement = "top")
+
+
+
+#Somme des actes en ambu
+table_actes_ambu <- description_agrega(sum, "nb_sej_0_nuit", "cat_libelle", "annee", "acte_cat_05", 1, "ID", sum, "test", TRUE)
+#Somme des actes
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", "acte_cat_05", 1, "ID", sum, "test", TRUE)
+#Part d'ambu en divisant le 1er tableau par le deuxième
+for (x in names(table_actes_ambu)){
+  table_actes_ambu[x] <- round(table_actes_ambu[x]/table_actes[x]*100,2)
+}
+#Conversion lateX
+print(xtable(table_actes_ambu, caption = "Pourcentage d'actes selectionnés effectués en ambulatoire (%) (> 5%)"), caption.placement = "top")
+
+
+###  10%
+
+
+#Somme des actes*dms
+table_actes_dms <- description_agrega(sum, "actes_dms", "cat_libelle", "annee", "acte_cat_10", 1, "ID", sum, "test", TRUE)
+#Somme des nombres d'actes
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", "acte_cat_10", 1, "ID", sum, "test", TRUE)
+#On divise le premier tableau par le deuxieme
+for (x in names(table_actes_dms)){
+  table_actes_dms[x] <- table_actes_dms[x]/table_actes[x]
+}
+#Conversion en latex
+print(xtable(table_actes_dms, caption = "Durée moyenne des séjours en hopitaux (> 10%)"), caption.placement = "top")
+
+
+
+#Somme des actes en ambu
+table_actes_ambu <- description_agrega(sum, "nb_sej_0_nuit", "cat_libelle", "annee", "acte_cat_10", 1, "ID", sum, "test", TRUE)
+#Somme des actes
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", "acte_cat_10", 1, "ID", sum, "test", TRUE)
+#Part d'ambu en divisant le 1er tableau par le deuxième
+for (x in names(table_actes_ambu)){
+  table_actes_ambu[x] <- round(table_actes_ambu[x]/table_actes[x]*100,2)
+}
+#Conversion lateX
+print(xtable(table_actes_ambu, caption = "Pourcentage d'actes selectionnés effectués en ambulatoire (%) (> 10%)"), caption.placement = "top")
+
+
+###  15%
+
+
+#Somme des actes*dms
+table_actes_dms <- description_agrega(sum, "actes_dms", "cat_libelle", "annee", "acte_cat_15", 1, "ID", sum, "test", TRUE)
+#Somme des nombres d'actes
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", "acte_cat_15", 1, "ID", sum, "test", TRUE)
+#On divise le premier tableau par le deuxieme
+for (x in names(table_actes_dms)){
+  table_actes_dms[x] <- table_actes_dms[x]/table_actes[x]
+}
+#Conversion en latex
+print(xtable(table_actes_dms, caption = "Durée moyenne des séjours en hopitaux (> 15%)"), caption.placement = "top")
+
+
+
+#Somme des actes en ambu
+table_actes_ambu <- description_agrega(sum, "nb_sej_0_nuit", "cat_libelle", "annee", "acte_cat_15", 1, "ID", sum, "test", TRUE)
+#Somme des actes
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", "acte_cat_15", 1, "ID", sum, "test", TRUE)
+#Part d'ambu en divisant le 1er tableau par le deuxième
+for (x in names(table_actes_ambu)){
+  table_actes_ambu[x] <- round(table_actes_ambu[x]/table_actes[x]*100,2)
+}
+#Conversion lateX
+print(xtable(table_actes_ambu, caption = "Pourcentage d'actes selectionnés effectués en ambulatoire (%) (> 15%)"), caption.placement = "top")
+
+
+###  20%
 
 #Somme des actes*dms
 table_actes_dms <- description_agrega(sum, "actes_dms", "cat_libelle", "annee", "acte_cat_20", 1, "ID", sum, "test", TRUE)
@@ -987,7 +1100,7 @@ for (x in names(table_actes_dms)){
 print(xtable(table_actes_dms, caption = "Durée moyenne des séjours en hopitaux (> 20%)"), caption.placement = "top")
 
 
-##Part d'actes en ambulatoire
+#
 
 #Somme des actes en ambu
 table_actes_ambu <- description_agrega(sum, "nb_sej_0_nuit", "cat_libelle", "annee", "acte_cat_20", 1, "ID", sum, "test", TRUE)
@@ -1001,17 +1114,41 @@ for (x in names(table_actes_ambu)){
 print(xtable(table_actes_ambu, caption = "Pourcentage d'actes selectionnés effectués en ambulatoire (%) (> 20%)"), caption.placement = "top")
 
 
+
 ###Controle sur l'ensemble des actes sélectionnés
 
-CCAM_select <- CCAM[CCAM$selection == 1,]
+CCAM_base <- CCAM
+CCAM <- CCAM[CCAM$selection == 1,]
+
+###On va tester 2 variables de controle
+
+#Pourcentage de participation total
+CCAM$part_actes_total <- CCAM$nb_actes/sum(CCAM$nb_actes)
+
+#Pourcentage de participation pour 1 acte CCAM
+liste_actes <- unique(CCAM$acte)
+CCAM$part_actes_CCAM <- NA
+for (x in liste_actes){
+  CCAM$part_actes_CCAM[CCAM$acte == x] <- CCAM$nb_actes[CCAM$acte == x] / sum(CCAM$nb_actes[CCAM$acte == x])
+}
 
 #On retrouve les moyennes précédentes
-summary(lm(part_ambu ~ cat_libelle + annee + annee*cat_libelle, CCAM_select, weights = nb_actes))
-summary(lm(part_ambu ~ cat_libelle, CCAM_select, weights = nb_actes))
-summary(lm(part_ambu ~ annee, CCAM_select, weights = nb_actes))
+summary(lm(part_ambu ~ cat_libelle + annee + annee*cat_libelle, CCAM, weights = nb_actes))
+summary(lm(part_ambu ~ cat_libelle, CCAM, weights = nb_actes))
+summary(lm(part_ambu ~ annee, CCAM, weights = nb_actes))
+
+summary(lm(part_ambu ~ cat_libelle, CCAM, weights = nb_actes))
+summary(lm(part_ambu ~ annee, CCAM, weights = nb_actes))
+summary(lm(part_ambu ~ cat_libelle + annee + annee*cat_libelle, CCAM, weights = nb_actes))
+
+summary(lm(part_ambu ~ cat_libelle + acte_cat_20*cat_libelle, CCAM,weights = nb_actes))
 
 #Controle par la part de
-summary(lm(part_ambu ~ cat_libelle + part_actes_cat*cat_libelle, CCAM))
+summary(lm(part_ambu ~ cat_libelle + part_actes_CCAM, CCAM,weights = nb_actes))
+summary(lm(part_ambu ~ cat_libelle + part_actes_CCAM*cat_libelle, CCAM,weights = nb_actes))
+
+summary(lm(dms_globale ~ cat_libelle + part_actes_cat, CCAM,weights = nb_actes))
+summary(lm(dms_globale ~ cat_libelle + part_actes_cat*cat_libelle, CCAM,weights = nb_actes))
 
 summary(lm(dms_globale ~ cat_libelle + annee + annee*cat_libelle + part_actes_cat*cat_libelle, CCAM))
 summary(lm(dms_globale ~ cat_libelle + annee + annee*cat_libelle + part_actes_cat*cat_libelle + part_actes_cat*cat_libelle*annee, CCAM))
@@ -1020,7 +1157,58 @@ summary(lm(dms_globale ~ cat_libelle + annee + annee*cat_libelle + part_actes_ca
 summary(lm(dms_globale ~ cat_libelle + annee , CCAM))
 summary(lm(dms_globale ~ cat_libelle + nb_actes, CCAM))
 
-###########################################################################################
+
+
+
+
+
+##############################################################################################################
+###ANALYSE PAR ACTE
+############################################################################################################
+
+
+
+##Chirurgie
+###HZHE0020
+
+##Part d'actes en ambulatoire
+
+#Somme des actes en ambu
+table_actes_ambu <- description_agrega(sum, "nb_sej_0_nuit", "cat_libelle", "annee", "acte", "HZHE0020", "ID", sum, "test", TRUE)
+#Somme des actes
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", "acte", "HZHE0020", "ID", sum, "test", TRUE)
+#Part d'ambu en divisant le 1er tableau par le deuxième
+for (x in names(table_actes_ambu)){
+  table_actes_ambu[x] <- round(table_actes_ambu[x]/table_actes[x]*100,2)
+}
+#Conversion lateX
+print(xtable(table_actes_ambu, caption = "Pourcentage d'actes HZHE0020 effectués en ambulatoire (%)"), caption.placement = "top")
+print(unique(CCAM$libelle[CCAM$acte=="HZHE0020"]))
+
+regression <- reg_cluster(part_ambu ~ cat_libelle*annee, "nb_actes", "FINESS_ET", "acte", "HZHE0020")
+
+
+adj_r2 <- function(x) {
+  return (1 - ((1-summary(x)$r.squared)*(nobs(x)-1)/(nobs(x)-length(x$coefficients)-1)))
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####################################################################################################
+
 
 ###Vérification aprrox nb_actes = nb_sejsea ou nb_sej_0_nuit = nb_acte_ambu
 
