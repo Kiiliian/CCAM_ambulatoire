@@ -12,6 +12,7 @@ library(ggplot2)
 library(tidyverse)
 library(stringr)
 library(miceadds)
+library(sandwich)
 
 
 #######################################################################################################
@@ -465,23 +466,7 @@ maxima <- function(colonne, agrega, rs_libelle, nombre, var_selection, selection
   }
 }
 
-reg_cluster <- function(formula, weights, cluster, var_selection, selection){
-  temp <- CCAM
-  if(!is.na(var_selection)){
-    names(temp)[names(temp) == var_selection] <- "var_selection"
-    temp <- temp[temp$var_selection == selection,]
-  }
-  names(temp)[names(temp) == weights] <- "weights"
-  
-  regression <- lm.cluster( data = temp, formula = formula, weights = temp$weights, cluster = cluster)
-  
-  print("Avec cluster")
-  print(summary(regression))
-  
-  print("Sans cluster")
-  print(summary(regression$lm_res))
-  return(regression)
-}
+
 
 
 
@@ -1168,8 +1153,26 @@ summary(lm(dms_globale ~ cat_libelle + nb_actes, CCAM))
 
 
 
+
+
 ##Chirurgie
+
+#Acte le plus effectué BFGA0040
+print(unique(CCAM$libelle[CCAM$acte=="BFGA0040"]))
+
+regression <- lm.cluster( data = CCAM[CCAM$acte == "BFGA0040",], formula = part_ambu ~ cat_libelle*annee, weights = CCAM$nb_actes[CCAM$acte =="BFGA0040"], cluster = "FINESS_ET")
+summary(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM[CCAM$acte == "BFGA0040",], formula = part_ambu ~ cat_libelle, weights = CCAM$nb_actes[CCAM$acte =="BFGA0040"], cluster = "FINESS_ET")
+summary(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM[CCAM$acte == "BFGA0040",], formula = part_ambu ~ annee, weights = CCAM$nb_actes[CCAM$acte =="BFGA0040"], cluster = "FINESS_ET")
+summary(regression$lm_res)
+
+
 ###HZHE0020
+
+print(unique(CCAM$libelle[CCAM$acte=="HZHE0020"]))
 
 ##Part d'actes en ambulatoire
 
@@ -1183,23 +1186,41 @@ for (x in names(table_actes_ambu)){
 }
 #Conversion lateX
 print(xtable(table_actes_ambu, caption = "Pourcentage d'actes HZHE0020 effectués en ambulatoire (%)"), caption.placement = "top")
-print(unique(CCAM$libelle[CCAM$acte=="HZHE0020"]))
 
-regression <- reg_cluster(part_ambu ~ cat_libelle*annee, "nb_actes", "FINESS_ET", "acte", "HZHE0020")
+regression <- lm.cluster( data = CCAM[CCAM$acte == "HZHE0020",], formula = part_ambu ~ cat_libelle*annee, weights = CCAM$nb_actes[CCAM$acte =="HZHE0020"], cluster = "FINESS_ET")
+summary(regression)
+summary(regression$lm_res)
 
+regression <- lm.cluster( data = CCAM[CCAM$acte == "HZHE0020",], formula = part_ambu ~ cat_libelle, weights = CCAM$nb_actes[CCAM$acte =="HZHE0020"], cluster = "FINESS_ET")
+summary(regression$lm_res)
 
-adj_r2 <- function(x) {
-  return (1 - ((1-summary(x)$r.squared)*(nobs(x)-1)/(nobs(x)-length(x$coefficients)-1)))
+regression <- lm.cluster( data = CCAM[CCAM$acte == "HZHE0020",], formula = part_ambu ~ annee, weights = CCAM$nb_actes[CCAM$acte =="HZHE0020"], cluster = "FINESS_ET")
+summary(regression$lm_res)
+
+##DMS
+
+#Somme des actes en ambu
+table_actes_dms <- description_agrega(sum, "actes_dms", "cat_libelle", "annee", "acte", "HZHE0020", "ID", sum, "test", TRUE)
+#Somme des actes
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", "acte", "HZHE0020", "ID", sum, "test", TRUE)
+#Part d'ambu en divisant le 1er tableau par le deuxième
+for (x in names(table_actes_dms)){
+  table_actes_dms[x] <- table_actes_dms[x]/table_actes[x]
 }
+#Conversion lateX
+print(xtable(table_actes_dms, caption = "Durée moyenne de séjour pour l'actes HZHE0020"), caption.placement = "top")
 
 
+##COntrole par la DMS ???
 
+regression <- lm.cluster( data = CCAM[CCAM$acte == "HZHE0020",], formula = part_ambu ~ cat_libelle*annee + dms_globale, weights = CCAM$nb_actes[CCAM$acte =="HZHE0020"], cluster = "FINESS_ET")
+summary(regression$lm_res)
 
+regression <- lm.cluster( data = CCAM[CCAM$acte == "HZHE0020",], formula = part_ambu ~ cat_libelle*annee*dms_globale, weights = CCAM$nb_actes[CCAM$acte =="HZHE0020"], cluster = "FINESS_ET")
+summary(regression$lm_res)
 
-
-
-
-
+regression <- lm.cluster( data = CCAM[CCAM$acte == "HZHE0020",], formula = dms_globale ~ cat_libelle*annee, weights = CCAM$nb_actes[CCAM$acte =="HZHE0020"], cluster = "FINESS_ET")
+summary(regression$lm_res)
 
 
 
