@@ -139,3 +139,43 @@ CCAM_capacite <- inner_join(CCAM_final, capacite, by = "ID")
 
 write.csv(CCAM_capacite,"C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/ccam_capacite.csv", row.names=FALSE)
 
+CCAM <- read_csv("C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/ccam_capacite.csv")
+
+CCAM$finess_ej_annee <- CCAM$finess_ej_annee <- paste(CCAM$FINESS_EJ, CCAM$annee, sep="_")
+
+library(readxl)
+
+hospidiag_15 <- read_excel("C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/hospidiag/hospidiag_15.xlsx")
+hospidiag_16 <- read_excel("C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/hospidiag/hospidiag_16.xlsx")
+hospidiag_17 <- read_excel("C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/hospidiag/hospidiag_17.xlsx")
+hospidiag_18 <- read_excel("C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/hospidiag/hospidiag_18.xlsx")
+hospidiag_19 <- read_excel("C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/hospidiag/hospidiag_19.xlsx")
+hospidiag_20 <- read_excel("C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/hospidiag/hospidiag_20.xlsx")
+hospidiag_21 <- read_excel("C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/hospidiag/hospidiag_21.xlsx")
+
+hospidiag_15$finess_ej_annee <- paste(hospidiag_15$finess, "2015", sep = "_")
+hospidiag_16$finess_ej_annee <- paste(hospidiag_16$finess, "2016", sep = "_")
+hospidiag_17$finess_ej_annee <- paste(hospidiag_17$finess, "2017", sep = "_")
+hospidiag_18$finess_ej_annee <- paste(hospidiag_18$finess, "2018", sep = "_")
+hospidiag_19$finess_ej_annee <- paste(hospidiag_19$finess, "2019", sep = "_")
+hospidiag_20$finess_ej_annee <- paste(hospidiag_20$finess, "2020", sep = "_")
+hospidiag_21$finess_ej_annee <- paste(hospidiag_21$finess, "2021", sep = "_")
+
+
+hospidiag_15 <- hospidiag_15[,c("finess_ej_annee", "taille_MCO", "taille_M", "taille_C", "taille_O","A7","A8","A9","A10","A11","A12","A13","A14","A15")]
+hospidiag_16 <- hospidiag_16[,c("finess_ej_annee", "taille_MCO", "taille_M", "taille_C", "taille_O","A7","A8","A9","A10","A11","A12","A13","A14","A15")]
+hospidiag_17 <- hospidiag_17[,c("finess_ej_annee", "taille_MCO", "taille_M", "taille_C", "taille_O","A7","A8","A9","A10","A11","A12","A13","A14","A15")]
+hospidiag_18 <- hospidiag_18[,c("finess_ej_annee", "taille_MCO", "taille_M", "taille_C", "taille_O","A7","A8","A9","A10","A11","A12","A13","A14","A15")]
+hospidiag_19 <- hospidiag_19[,c("finess_ej_annee", "taille_MCO", "taille_M", "taille_C", "taille_O","A7","A8","A9","A10","A11","A12","A13","A14","A15")]
+hospidiag_20 <- hospidiag_20[,c("finess_ej_annee", "taille_MCO", "taille_M", "taille_C", "taille_O","A7","A8","A9","A10","A11","A12","A13","A14","A15")]
+hospidiag_21 <- hospidiag_21[,c("finess_ej_annee", "taille_MCO", "taille_M", "taille_C", "taille_O","A7","A8","A9","A10","A11","A12","A13","A14","A15")]
+
+hospidiag <- do.call("rbind",list(hospidiag_15,hospidiag_16,hospidiag_17,hospidiag_18,hospidiag_19,hospidiag_20,hospidiag_21))
+
+
+CCAM_hospi <- inner_join(CCAM, hospidiag, by = "finess_ej_annee")
+
+(length(CCAM$FINESS_ET)-length(CCAM_hospi$FINESS_ET))/ length(CCAM$FINESS_ET)*100
+#Seulement 3 % de pertes
+
+write.csv(CCAM_hospi,"C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/ccam_hospi.csv", row.names=FALSE)
