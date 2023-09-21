@@ -13,6 +13,7 @@ library(tidyverse)
 library(stringr)
 library(miceadds)
 library(sandwich)
+library(spatstat)
 
 
 #######################################################################################################
@@ -24,6 +25,17 @@ no_axis <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_
                  axis.text.x=element_blank(), axis.ticks.x=element_blank(),
                  axis.text.y=element_blank(), axis.ticks.y=element_blank())
 
+liste_noms <- c("(Constante)","Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019",
+                "Privé lucratif*2016", "Privé non lucratif*2016","Public*2016",
+                "Privé lucratif*2017", "Privé non lucratif*2017","Public*2017",
+                "Privé lucratif*2018", "Privé non lucratif*2018","Public*2018",
+                "Privé lucratif*2019", "Privé non lucratif*2019","Public*2019")
+
+liste_noms_A9 <- c("(Constante)","Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019", "A9",
+                "Privé lucratif*2016", "Privé non lucratif*2016","Public*2016",
+                "Privé lucratif*2017", "Privé non lucratif*2017","Public*2017",
+                "Privé lucratif*2018", "Privé non lucratif*2018","Public*2018",
+                "Privé lucratif*2019", "Privé non lucratif*2019","Public*2019")
 
 ####################################################################################################################
 # TRIS
@@ -472,7 +484,7 @@ maxima <- function(colonne, agrega, rs_libelle, nombre, var_selection, selection
 
 ###Chargement de la table
 
-CCAM_base <- read_csv("C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/ccam_capacite.csv")
+CCAM_base <- read_csv("C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/ccam_hospi.csv")
 
 ####################################################################################################################
 
@@ -510,7 +522,6 @@ tri_table(TRUE, "cat_libelle", NA , "ID",FALSE, FALSE, "Répartition des établi
 
 #Besoin d'une colonne d'agrégation (Finess_ej + année)
 
-CCAM$finess_ej_annee <- paste(CCAM$FINESS_EJ, CCAM$annee, sep="_")
 tri_table(TRUE, "cat_libelle", NA , "finess_ej_annee",FALSE, FALSE,"Répartition des entités juridiques par année", FALSE, FALSE)
 
 
@@ -726,6 +737,7 @@ print(xtable(repartition, caption = "Descriptif du nombre d'actes(Actes réalisa
 
 #quantiles
 quantile(CCAM_actes_non_nul$nb_actes, probs = .9)
+quantile(CCAM_actes_non_nul$nb_actes, probs = .95)
 quantile(CCAM_actes_non_nul$nb_actes, probs = .99)
 
 
@@ -882,11 +894,33 @@ CCAM <- read_csv("C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/ccam_analys
 
 CCAM$annee <- as.character(CCAM$annee)
 
+
 #La colonne part_ambu correspond à la part d'ambulatoire d'un acte CCAM sur l'ensemble des établissements
 
 names(CCAM)[names(CCAM)=="part_ambu"] <- "part_ambu_tous_etab"
 
 CCAM$part_ambu <- CCAM$nb_sej_0_nuit / CCAM$nb_actes * 100
+
+#A9 conversion en numérique
+CCAM$A9 <- gsub(",",".", CCAM$A9)
+CCAM$A9 <- as.numeric(CCAM$A9)
+
+#remplacement NA values
+for (i in unique(CCAM$annee)){
+  CCAM$A9[is.na(CCAM$A9) & CCAM$code_cat == 3 & CCAM$annee == i] <- mean(CCAM$A9[CCAM$code_cat == 3 & CCAM$annee == i],na.rm = TRUE)
+  CCAM$A9[is.na(CCAM$A9) & CCAM$code_cat == 4 & CCAM$annee == i] <- mean(CCAM$A9[CCAM$code_cat == 4 & CCAM$annee == i],na.rm = TRUE)
+}
+
+#A10 conversion en numérique
+CCAM$A10[CCAM$A10 == ".z" | is.na(CCAM$A10)] <- "0" 
+CCAM$A10 <- gsub(",",".", CCAM$A10)
+CCAM$A10 <- as.numeric(CCAM$A10)
+
+#A11 conversion en numérique
+CCAM$A11[CCAM$A11 == ".z" | is.na(CCAM$A11)] <- "0" 
+CCAM$A11 <- gsub(",",".", CCAM$A11)
+CCAM$A11 <- as.numeric(CCAM$A11)
+
 
 #Durée moyenne de séjour
 #Conversion en numérique
@@ -967,6 +1001,14 @@ print(xtable(table_actes_dms, caption = "Durée moyenne des séjours en hopitaux
 CCAM_save <- CCAM
 CCAM <- CCAM[CCAM$selection ==1,]
 
+#Pour les clusters, on crée une colonne FINESS + acte
+
+CCAM$FINESS_acte <- paste(CCAM$FINESS_ET,CCAM$acte, sep ="_")
+
+
+
+#####UTILITE ?
+
 #Seuil de participation pour les catégories
 
 #Fonction
@@ -983,6 +1025,8 @@ CCAM$acte_cat_05 <- acte_tout_cat_parti(.05) & (CCAM$selection == TRUE)
 CCAM$acte_cat_10 <- acte_tout_cat_parti(.1) & (CCAM$selection == TRUE)
 CCAM$acte_cat_15 <- acte_tout_cat_parti(.15) & (CCAM$selection == TRUE)
 CCAM$acte_cat_20 <- acte_tout_cat_parti(.2) & (CCAM$selection == TRUE)
+
+
 
 #################################
 
@@ -1013,6 +1057,12 @@ for (x in names(table_actes_ambu)){
 }
 #Conversion lateX
 print(xtable(table_actes_ambu, caption = "Pourcentage d'actes selectionnés effectués en ambulatoire (%) (> 5%)"), caption.placement = "top")
+
+##regressions
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee*acte_cat_05, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression)
+summary(regression$lm_res)
 
 
 ###  10%
@@ -1085,7 +1135,7 @@ for (x in names(table_actes_dms)){
 print(xtable(table_actes_dms, caption = "Durée moyenne des séjours en hopitaux (> 20%)"), caption.placement = "top")
 
 
-#
+#part_ambu
 
 #Somme des actes en ambu
 table_actes_ambu <- description_agrega(sum, "nb_sej_0_nuit", "cat_libelle", "annee", "acte_cat_20", 1, "ID", sum, "test", TRUE)
@@ -1100,10 +1150,13 @@ print(xtable(table_actes_ambu, caption = "Pourcentage d'actes selectionnés effe
 
 
 
+
+
+
+
+
 ###Controle sur l'ensemble des actes sélectionnés
 
-CCAM_base <- CCAM
-CCAM <- CCAM[CCAM$selection == 1,]
 
 ###On va tester 2 variables de controle
 
@@ -1117,34 +1170,65 @@ for (x in liste_actes){
   CCAM$part_actes_CCAM[CCAM$acte == x] <- CCAM$nb_actes[CCAM$acte == x] / sum(CCAM$nb_actes[CCAM$acte == x])
 }
 
-#On retrouve les moyennes précédentes
-summary(lm(part_ambu ~ cat_libelle + annee + annee*cat_libelle, CCAM, weights = nb_actes))
-summary(lm(part_ambu ~ cat_libelle, CCAM, weights = nb_actes))
-summary(lm(part_ambu ~ annee, CCAM, weights = nb_actes))
+##On retrouve les moyennes précédentes
 
-summary(lm(part_ambu ~ cat_libelle, CCAM, weights = nb_actes))
-summary(lm(part_ambu ~ annee, CCAM, weights = nb_actes))
-summary(lm(part_ambu ~ cat_libelle + annee + annee*cat_libelle, CCAM, weights = nb_actes))
+#Pour la première regession sur l'ensemble des actes
+CCAM_save$FINESS_acte <- paste(CCAM_save$FINESS_ET,CCAM_save$acte, sep ="_")
+regression <- lm.cluster( data = CCAM_save, formula = part_ambu ~ cat_libelle*annee, weights = CCAM_save$nb_actes, cluster = "FINESS_acte")
+summary(regression$lm_res)
 
-summary(lm(part_ambu ~ cat_libelle + acte_cat_20*cat_libelle, CCAM,weights = nb_actes))
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- liste_noms
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base appliqué à la part d'actes en ambulatoire",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
 
-#Controle par la part de
-summary(lm(part_ambu ~ cat_libelle + part_actes_CCAM, CCAM,weights = nb_actes))
-summary(lm(part_ambu ~ cat_libelle + part_actes_CCAM*cat_libelle, CCAM,weights = nb_actes))
-
-summary(lm(dms_globale ~ cat_libelle + part_actes_cat, CCAM,weights = nb_actes))
-summary(lm(dms_globale ~ cat_libelle + part_actes_cat*cat_libelle, CCAM,weights = nb_actes))
-
-summary(lm(dms_globale ~ cat_libelle + annee + annee*cat_libelle + part_actes_cat*cat_libelle, CCAM))
-summary(lm(dms_globale ~ cat_libelle + annee + annee*cat_libelle + part_actes_cat*cat_libelle + part_actes_cat*cat_libelle*annee, CCAM))
-
-#SAns controle
-summary(lm(dms_globale ~ cat_libelle + annee , CCAM))
-summary(lm(dms_globale ~ cat_libelle + nb_actes, CCAM))
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèle de base appliqué à la part d'actes en ambulatoire",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
 
 
 
 
+
+#Controle par A9
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- liste_noms_A9
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
+
+
+
+
+
+
+#Controle par  A9
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression)
+summary(regression$lm_res)
+
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9 + A10*cat_libelle +A11*cat_libelle, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression)
+summary(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ A9 , weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression)
+summary(regression$lm_res)
 
 
 ##############################################################################################################
@@ -1158,15 +1242,15 @@ summary(lm(dms_globale ~ cat_libelle + nb_actes, CCAM))
 ##Chirurgie
 
 #Acte le plus effectué BFGA0040
-print(unique(CCAM$libelle[CCAM$acte=="BFGA0040"]))
+print(unique(CCAM_save$libelle[CCAM_save$acte=="BFGA0040"]))
 
-regression <- lm.cluster( data = CCAM[CCAM$acte == "BFGA0040",], formula = part_ambu ~ cat_libelle*annee, weights = CCAM$nb_actes[CCAM$acte =="BFGA0040"], cluster = "FINESS_ET")
+regression <- lm.cluster( data = CCAM_save[CCAM_save$acte == "BFGA0040",], formula = part_ambu ~ cat_libelle*annee, weights = CCAM_save$nb_actes[CCAM_save$acte =="BFGA0040"], cluster = "FINESS_ET")
 summary(regression$lm_res)
 
-regression <- lm.cluster( data = CCAM[CCAM$acte == "BFGA0040",], formula = part_ambu ~ cat_libelle, weights = CCAM$nb_actes[CCAM$acte =="BFGA0040"], cluster = "FINESS_ET")
+regression <- lm.cluster( data = CCAM_save[CCAM_save$acte == "BFGA0040",], formula = part_ambu ~ cat_libelle, weights = CCAM_save$nb_actes[CCAM_save$acte =="BFGA0040"], cluster = "FINESS_ET")
 summary(regression$lm_res)
 
-regression <- lm.cluster( data = CCAM[CCAM$acte == "BFGA0040",], formula = part_ambu ~ annee, weights = CCAM$nb_actes[CCAM$acte =="BFGA0040"], cluster = "FINESS_ET")
+regression <- lm.cluster( data = CCAM_save[CCAM_save$acte == "BFGA0040",], formula = part_ambu ~ annee, weights = CCAM_save$nb_actes[CCAM_save$acte =="BFGA0040"], cluster = "FINESS_ET")
 summary(regression$lm_res)
 
 
@@ -1174,35 +1258,69 @@ summary(regression$lm_res)
 
 print(unique(CCAM$libelle[CCAM$acte=="HZHE0020"]))
 
+#Colonne de selection
+CCAM$select_HZHE0020 <- ifelse(CCAM$acte == "HZHE0020" & !is.na(CCAM$A9),1,0)
+
 ##Part d'actes en ambulatoire
 
 #Somme des actes en ambu
-table_actes_ambu <- description_agrega(sum, "nb_sej_0_nuit", "cat_libelle", "annee", "acte", "HZHE0020", "ID", sum, "test", TRUE)
+table_actes_ambu <- description_agrega(sum, "nb_sej_0_nuit", "cat_libelle", "annee", "select_HZHE0020", 1, "ID", sum, "test", TRUE)
 #Somme des actes
-table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", "acte", "HZHE0020", "ID", sum, "test", TRUE)
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", "select_HZHE0020", 1, "ID", sum, "test", TRUE)
 #Part d'ambu en divisant le 1er tableau par le deuxième
 for (x in names(table_actes_ambu)){
   table_actes_ambu[x] <- round(table_actes_ambu[x]/table_actes[x]*100,2)
 }
 #Conversion lateX
-print(xtable(table_actes_ambu, caption = "Pourcentage d'actes HZHE0020 effectués en ambulatoire (%)"), caption.placement = "top")
+print(xtable(table_actes_ambu, caption = "Pourcentage moyen d'actes HZHE0020 effectués en ambulatoire (%)"), caption.placement = "top")
 
-regression <- lm.cluster( data = CCAM[CCAM$acte == "HZHE0020",], formula = part_ambu ~ cat_libelle*annee, weights = CCAM$nb_actes[CCAM$acte =="HZHE0020"], cluster = "FINESS_ET")
-summary(regression)
+regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = part_ambu ~ cat_libelle*annee, weights = CCAM$nb_actes[CCAM$select_HZHE0020 == 1], cluster = "FINESS_ET")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- liste_noms
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base appliqué à la part d'actes en ambulatoire",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
 
-regression <- lm.cluster( data = CCAM[CCAM$acte == "HZHE0020",], formula = part_ambu ~ cat_libelle, weights = CCAM$nb_actes[CCAM$acte =="HZHE0020"], cluster = "FINESS_ET")
+regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = part_ambu ~ cat_libelle, weights = CCAM$nb_actes[CCAM$select_HZHE0020 == 1], cluster = "FINESS_ET")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèle de base appliqué à la part d'actes en ambulatoire",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
 
-regression <- lm.cluster( data = CCAM[CCAM$acte == "HZHE0020",], formula = part_ambu ~ annee, weights = CCAM$nb_actes[CCAM$acte =="HZHE0020"], cluster = "FINESS_ET")
+
+###Var de controle juste en ajout pas en multiplication
+
+regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = part_ambu ~ cat_libelle*annee + A9, weights = CCAM$nb_actes[CCAM$select_HZHE0020 ==1], cluster = "FINESS_ET")
 summary(regression$lm_res)
+
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- liste_noms
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèle avec contrôle par A9 appliqué à la part d'actes en ambulatoire",digits=c(0,3,3,2,3)), caption.placement = "top")
+
+
+regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = part_ambu ~ cat_libelle+A9, weights = CCAM$nb_actes[CCAM$select_HZHE0020 ==1], cluster = "FINESS_ET")
+summary(regression$lm_res)
+
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- liste_noms
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèle avec contrôle par A9 appliqué à la part d'actes en ambulatoire",digits=c(0,3,3,2,3)), caption.placement = "top")
+
+
+
+
+
+
+
 
 ##DMS
 
 #Somme des actes en ambu
-table_actes_dms <- description_agrega(sum, "actes_dms", "cat_libelle", "annee", "acte", "HZHE0020", "ID", sum, "test", TRUE)
+table_actes_dms <- description_agrega(sum, "actes_dms", "cat_libelle", "annee", "select_HZHE0020", 1, "ID", sum, "test", TRUE)
 #Somme des actes
-table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", "acte", "HZHE0020", "ID", sum, "test", TRUE)
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", "select_HZHE0020", 1, "ID", sum, "test", TRUE)
 #Part d'ambu en divisant le 1er tableau par le deuxième
 for (x in names(table_actes_dms)){
   table_actes_dms[x] <- table_actes_dms[x]/table_actes[x]
@@ -1213,16 +1331,36 @@ print(xtable(table_actes_dms, caption = "Durée moyenne de séjour pour l'actes 
 
 ##COntrole par la DMS ???
 
-regression <- lm.cluster( data = CCAM[CCAM$acte == "HZHE0020",], formula = part_ambu ~ cat_libelle*annee + dms_globale, weights = CCAM$nb_actes[CCAM$acte =="HZHE0020"], cluster = "FINESS_ET")
+regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = part_ambu ~ cat_libelle*annee + dms_globale, weights = CCAM$nb_actes[CCAM$select_HZHE0020 == 1], cluster = "FINESS_ET")
 summary(regression$lm_res)
+summary(regression)
 
-regression <- lm.cluster( data = CCAM[CCAM$acte == "HZHE0020",], formula = part_ambu ~ cat_libelle*annee*dms_globale, weights = CCAM$nb_actes[CCAM$acte =="HZHE0020"], cluster = "FINESS_ET")
+
+#Controle par indicatrice de ds > 2
+
+
+
+CCAM$dms_mean <- ifelse(CCAM$dms_globale > mean(CCAM$dms_globale[CCAM$select_HZHE0020 == 1]), 1, 0)
+
+regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = part_ambu ~ cat_libelle + dms_mean, weights = CCAM$nb_actes[CCAM$select_HZHE0020 == 1], cluster = "FINESS_ET")
 summary(regression$lm_res)
+summary(regression)
 
-regression <- lm.cluster( data = CCAM[CCAM$acte == "HZHE0020",], formula = dms_globale ~ cat_libelle*annee, weights = CCAM$nb_actes[CCAM$acte =="HZHE0020"], cluster = "FINESS_ET")
+
+CCAM$dms_3 <- ifelse(CCAM$dms_globale > 3, 1, 0)
+
+regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = part_ambu ~ cat_libelle + dms_3, weights = CCAM$nb_actes[CCAM$select_HZHE0020 == 1], cluster = "FINESS_ET")
 summary(regression$lm_res)
+summary(regression)
+
+regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = part_ambu ~ cat_libelle*dms_3, weights = CCAM$nb_actes[CCAM$select_HZHE0020 == 1], cluster = "FINESS_ET")
+summary(regression$lm_res)
+summary(regression)
 
 
+regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = part_ambu ~ cat_libelle*dms_3 + A9, weights = CCAM$nb_actes[CCAM$select_HZHE0020 == 1], cluster = "FINESS_ET")
+summary(regression$lm_res)
+summary(regression)
 
 
 
