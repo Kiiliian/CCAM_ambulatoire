@@ -14,7 +14,7 @@ library(stringr)
 library(miceadds)
 library(sandwich)
 library(spatstat)
-
+library(car)
 
 #######################################################################################################
 
@@ -1335,6 +1335,7 @@ row.names(reg_table) <- liste_noms_A9
 names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
 print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
+vif(regression$lm_res)
 
 regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
 reg_table <- as.data.frame(summary(regression))
@@ -1378,6 +1379,26 @@ summary(regression$lm_res)
 regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9 + A9_dms + tarif + A10 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
 summary(regression$lm_res)
 
+
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~  dms_globale  , weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression$lm_res)
+vif(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + inv_dms, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression$lm_res)
+vif(regression$lm_res)
+
+
+regression <- lm(part_ambu ~dms_globale, data =CCAM,weights = nb_actes)
+summary(regression)
+print(1/(1-summary(regression)$r.squared))
+
+
+cor.test(CCAM$part_ambu,CCAM$A9_dms, method ="pearson")
+cor.test(CCAM$part_ambu,CCAM$A9, method ="pearson")
+cor.test(CCAM$part_ambu,CCAM$dms_globale, method ="pearson")
+cor.test(CCAM$part_ambu,CCAM$A9_tarif, method ="pearson")
 
 
 
