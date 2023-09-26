@@ -905,18 +905,33 @@ CCAM$part_ambu <- CCAM$nb_sej_0_nuit / CCAM$nb_actes * 100
 CCAM$A9 <- gsub(",",".", CCAM$A9)
 CCAM$A9 <- as.numeric(CCAM$A9)
 
+
+CCAM$A9z <- ifelse(is.na(CCAM$A9),1,0)
+
+tri_table(FALSE, "cat_libelle","A9z", "FINESS_ET", FALSE, FALSE, "Répartition des données manquantes A9", FALSE, FALSE)
+
+
 #remplacement NA values
 for (i in unique(CCAM$annee)){
-  CCAM$A9[is.na(CCAM$A9) & CCAM$code_cat == 3 & CCAM$annee == i] <- mean(CCAM$A9[CCAM$code_cat == 3 & CCAM$annee == i],na.rm = TRUE)
-  CCAM$A9[is.na(CCAM$A9) & CCAM$code_cat == 4 & CCAM$annee == i] <- mean(CCAM$A9[CCAM$code_cat == 4 & CCAM$annee == i],na.rm = TRUE)
+  CCAM$A9[is.na(CCAM$A9) & CCAM$code_cat == 3 & CCAM$annee == i] <- median(CCAM$A9[CCAM$code_cat == 3 & CCAM$annee == i],na.rm = TRUE)
+  CCAM$A9[is.na(CCAM$A9) & CCAM$code_cat == 4 & CCAM$annee == i] <- median(CCAM$A9[CCAM$code_cat == 4 & CCAM$annee == i],na.rm = TRUE)
 }
 
+
 #A10 conversion en numérique
+CCAM$A10z <- ifelse(CCAM$A10 == ".z",1,0)
+
+tri_table(FALSE, "cat_libelle","A10z", "FINESS_ET", TRUE, FALSE, "Répartition des données manquantes A10", FALSE, FALSE)
+
 CCAM$A10[CCAM$A10 == ".z" | is.na(CCAM$A10)] <- "0" 
 CCAM$A10 <- gsub(",",".", CCAM$A10)
 CCAM$A10 <- as.numeric(CCAM$A10)
 
 #A11 conversion en numérique
+CCAM$A11z <- ifelse(CCAM$A11 == ".z",1,0)
+
+tri_table(FALSE, "cat_libelle","A11z", "FINESS_ET", TRUE, FALSE, "Répartition des données manquantes A11", FALSE, FALSE)
+
 CCAM$A11[CCAM$A11 == ".z" | is.na(CCAM$A11)] <- "0" 
 CCAM$A11 <- gsub(",",".", CCAM$A11)
 CCAM$A11 <- as.numeric(CCAM$A11)
@@ -1149,47 +1164,165 @@ for (x in names(table_actes_ambu)){
 print(xtable(table_actes_ambu, caption = "Pourcentage d'actes selectionnés effectués en ambulatoire (%) (> 20%)"), caption.placement = "top")
 
 
+weighted.quantile(CCAM_save$part_ambu,CCAM_save$nb_actes,seq(0,1,0.25))
+weighted.quantile(CCAM_save$dms_globale,CCAM_save$nb_actes,seq(0,1,0.25))
+
+weighted.quantile(CCAM$part_ambu,CCAM$nb_actes,seq(0,1,0.25))
+weighted.quantile(CCAM$dms_globale,CCAM$nb_actes,seq(0,1,0.25))
 
 
 
 
 
+##Chargement base de données
+CCAM <- read_csv("C:/Users/Kilian/Desktop/CCAM/CCAM_ambulatoire/Data/ccam_analyses.csv")
 
-###Controle sur l'ensemble des actes sélectionnés
+CCAM$annee <- as.character(CCAM$annee)
 
 
-###On va tester 2 variables de controle
+#La colonne part_ambu correspond à la part d'ambulatoire d'un acte CCAM sur l'ensemble des établissements
 
-#Pourcentage de participation total
-CCAM$part_actes_total <- CCAM$nb_actes/sum(CCAM$nb_actes)
+names(CCAM)[names(CCAM)=="part_ambu"] <- "part_ambu_tous_etab"
 
-#Pourcentage de participation pour 1 acte CCAM
-liste_actes <- unique(CCAM$acte)
-CCAM$part_actes_CCAM <- NA
-for (x in liste_actes){
-  CCAM$part_actes_CCAM[CCAM$acte == x] <- CCAM$nb_actes[CCAM$acte == x] / sum(CCAM$nb_actes[CCAM$acte == x])
+CCAM$part_ambu <- CCAM$nb_sej_0_nuit / CCAM$nb_actes * 100
+
+#A9 conversion en numérique
+CCAM$A9 <- gsub(",",".", CCAM$A9)
+CCAM$A9 <- as.numeric(CCAM$A9)
+
+
+CCAM$A9z <- ifelse(is.na(CCAM$A9),1,0)
+
+tri_table(FALSE, "cat_libelle","A9z", "FINESS_ET", FALSE, FALSE, "Répartition des données manquantes A9", FALSE, FALSE)
+
+
+#remplacement NA values
+for (i in unique(CCAM$annee)){
+  CCAM$A9[is.na(CCAM$A9) & CCAM$code_cat == 3 & CCAM$annee == i] <- median(CCAM$A9[CCAM$code_cat == 3 & CCAM$annee == i],na.rm = TRUE)
+  CCAM$A9[is.na(CCAM$A9) & CCAM$code_cat == 4 & CCAM$annee == i] <- median(CCAM$A9[CCAM$code_cat == 4 & CCAM$annee == i],na.rm = TRUE)
 }
 
-##On retrouve les moyennes précédentes
 
-#Pour la première regession sur l'ensemble des actes
-CCAM_save$FINESS_acte <- paste(CCAM_save$FINESS_ET,CCAM_save$acte, sep ="_")
-regression <- lm.cluster( data = CCAM_save, formula = part_ambu ~ cat_libelle*annee, weights = CCAM_save$nb_actes, cluster = "FINESS_acte")
-summary(regression$lm_res)
+#A10 conversion en numérique
+CCAM$A10z <- ifelse(CCAM$A10 == ".z",1,0)
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee, weights = CCAM$nb_actes, cluster = "FINESS_acte")
-reg_table <- as.data.frame(summary(regression))
-row.names(reg_table) <- liste_noms
-names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
-print(xtable(reg_table ,caption = "Modèles de base appliqué à la part d'actes en ambulatoire",digits=c(0,3,3,2,3)), caption.placement = "top")
-summary(regression$lm_res)
+tri_table(FALSE, "cat_libelle","A10z", "FINESS_ET", TRUE, FALSE, "Répartition des données manquantes A10", FALSE, FALSE)
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle, weights = CCAM$nb_actes, cluster = "FINESS_acte")
-reg_table <- as.data.frame(summary(regression))
-row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public")
-names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
-print(xtable(reg_table ,caption = "Modèle de base appliqué à la part d'actes en ambulatoire",digits=c(0,3,3,2,3)), caption.placement = "top")
-summary(regression$lm_res)
+CCAM$A10[CCAM$A10 == ".z" | is.na(CCAM$A10)] <- "0" 
+CCAM$A10 <- gsub(",",".", CCAM$A10)
+CCAM$A10 <- as.numeric(CCAM$A10)
+
+#A11 conversion en numérique
+CCAM$A11z <- ifelse(CCAM$A11 == ".z",1,0)
+
+tri_table(FALSE, "cat_libelle","A11z", "FINESS_ET", TRUE, FALSE, "Répartition des données manquantes A11", FALSE, FALSE)
+
+CCAM$A11[CCAM$A11 == ".z" | is.na(CCAM$A11)] <- "0" 
+CCAM$A11 <- gsub(",",".", CCAM$A11)
+CCAM$A11 <- as.numeric(CCAM$A11)
+
+
+#Durée moyenne de séjour
+#Conversion en numérique
+CCAM$dms_globale <- gsub(",",".", CCAM$dms_globale)
+CCAM$dms_globale <- as.numeric(CCAM$dms_globale)
+
+#Colonne pour pondérer la dms par le nombres d'actes
+CCAM$actes_dms <- CCAM$dms_globale*CCAM$nb_actes
+
+CCAM_save <- CCAM
+CCAM <- CCAM[CCAM$selection ==1,]
+
+#Pour les clusters, on crée une colonne FINESS + acte
+
+CCAM$FINESS_acte <- paste(CCAM$FINESS_ET,CCAM$acte, sep ="_")
+
+CCAM$tarif <- ifelse(is.na(CCAM$tarif_sect1_1), CCAM$tarif_sect1_4,CCAM$tarif_sect1_1)
+CCAM$tarif[is.na(CCAM$tarif)] <- 0
+
+CCAM$A9_dms <- CCAM$A9*CCAM$dms_globale
+
+CCAM$A9_tarif <- CCAM$A9*CCAM$tarif
+
+
+
+###Description var de controle
+
+
+#Somme des actes*dms
+CCAM$A9_actes <- CCAM$A9*CCAM$nb_actes
+table_A9_actes <- description_agrega(sum, "A9_actes", "cat_libelle", "annee", NA, NA, "ID", sum, "test", TRUE)
+#Somme des nombres d'actes
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", NA, NA, "ID", sum, "test", TRUE)
+#On divise le premier tableau par le deuxieme
+for (x in names(table_A9_actes)){
+  table_A9_actes[x] <- table_A9_actes[x]/table_actes[x]
+}
+#Conversion en latex
+print(xtable(table_A9_actes, caption = "Valeurs moyennes de A9"), caption.placement = "top")
+
+weighted.quantile(CCAM$A9,CCAM$nb_actes,seq(0,1,0.25))
+###Test variable de controle
+
+#Les na values dans les tarifs correspondent à des actes non tarifés
+
+
+
+#tests
+
+cor.test(CCAM$A9*CCAM$dms_globale,CCAM$part_ambu, method="pearson")
+
+cor.test(CCAM$A9,CCAM$dms_globale, method="pearson")
+
+cor.test(CCAM$A9,CCAM$tarif, method="pearson")
+
+
+#A10
+
+#Somme des actes*dms
+CCAM$A10_actes <- CCAM$A10*CCAM$nb_actes
+table_A10_actes <- description_agrega(sum, "A10_actes", "cat_libelle", "annee", NA, NA, "ID", sum, "test", TRUE)
+#Somme des nombres d'actes
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", NA, NA, "ID", sum, "test", TRUE)
+#On divise le premier tableau par le deuxieme
+for (x in names(table_A10_actes)){
+  table_A10_actes[x] <- table_A10_actes[x]/table_actes[x]
+}
+#Conversion en latex
+print(xtable(table_A10_actes, caption = "Valeurs moyennes de A10"), caption.placement = "top")
+
+weighted.quantile(CCAM$A10,CCAM$nb_actes,seq(0,1,0.25))
+
+cor.test(CCAM$A10,CCAM$part_ambu, method="pearson")
+
+
+#A11
+
+#Somme des actes*dms
+CCAM$A11_actes <- CCAM$A11*CCAM$nb_actes
+table_A11_actes <- description_agrega(sum, "A11_actes", "cat_libelle", "annee", NA, NA, "ID", sum, "test", TRUE)
+#Somme des nombres d'actes
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", NA, NA, "ID", sum, "test", TRUE)
+#On divise le premier tableau par le deuxieme
+for (x in names(table_A11_actes)){
+  table_A11_actes[x] <- table_A11_actes[x]/table_actes[x]
+}
+#Conversion en latex
+print(xtable(table_A11_actes, caption = "Valeurs moyennes de A11"), caption.placement = "top")
+
+weighted.quantile(CCAM$A11,CCAM$nb_actes,seq(0,1,0.25))
+
+cor.test(CCAM$A11,CCAM$part_ambu, method="pearson")
+
+
+
+#Tarification
+
+cor.test(CCAM$tarif,CCAM$part_ambu, method="pearson")
+
+
+
+
 
 
 
@@ -1211,24 +1344,45 @@ print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9",digit
 summary(regression$lm_res)
 
 
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9_dms, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression$lm_res)
 
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9 + A9_dms, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression$lm_res)
 
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9 + tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression$lm_res)
 
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9_dms + tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression$lm_res)
 
-#Controle par  A9
-
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
-summary(regression)
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9 + A9_dms + tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
 summary(regression$lm_res)
 
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9 + A10*cat_libelle +A11*cat_libelle, weights = CCAM$nb_actes, cluster = "FINESS_acte")
-summary(regression)
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9 + A10, weights = CCAM$nb_actes, cluster = "FINESS_acte")
 summary(regression$lm_res)
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ A9 , weights = CCAM$nb_actes, cluster = "FINESS_acte")
-summary(regression)
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
 summary(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9 + A10 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9_dms + A10 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9_dms + tarif + A10 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9 + A9_dms + tarif + A10 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression$lm_res)
+
+
+
+
+
+
 
 
 ##############################################################################################################
