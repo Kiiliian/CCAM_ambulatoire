@@ -15,6 +15,7 @@ library(miceadds)
 library(sandwich)
 library(spatstat)
 library(car)
+library(stargazer)
 
 #######################################################################################################
 
@@ -25,17 +26,29 @@ no_axis <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_
                  axis.text.x=element_blank(), axis.ticks.x=element_blank(),
                  axis.text.y=element_blank(), axis.ticks.y=element_blank())
 
-liste_noms <- c("(Constante)","Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019",
+liste_noms <- c("Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019",
                 "Privé lucratif*2016", "Privé non lucratif*2016","Public*2016",
                 "Privé lucratif*2017", "Privé non lucratif*2017","Public*2017",
                 "Privé lucratif*2018", "Privé non lucratif*2018","Public*2018",
                 "Privé lucratif*2019", "Privé non lucratif*2019","Public*2019")
 
-liste_noms_A9 <- c("(Constante)","Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019", "A9",
+liste_noms_A9 <- c("Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019", "A9",
                 "Privé lucratif*2016", "Privé non lucratif*2016","Public*2016",
                 "Privé lucratif*2017", "Privé non lucratif*2017","Public*2017",
                 "Privé lucratif*2018", "Privé non lucratif*2018","Public*2018",
                 "Privé lucratif*2019", "Privé non lucratif*2019","Public*2019")
+
+liste_noms_A9_t <- c("Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019", "A9", "tarification",
+                   "Privé lucratif*2016", "Privé non lucratif*2016","Public*2016",
+                   "Privé lucratif*2017", "Privé non lucratif*2017","Public*2017",
+                   "Privé lucratif*2018", "Privé non lucratif*2018","Public*2018",
+                   "Privé lucratif*2019", "Privé non lucratif*2019","Public*2019")
+
+liste_noms_A9_t_10 <- c("Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019", "A9", "tarification","A10","A11",
+                     "Privé lucratif*2016", "Privé non lucratif*2016","Public*2016",
+                     "Privé lucratif*2017", "Privé non lucratif*2017","Public*2017",
+                     "Privé lucratif*2018", "Privé non lucratif*2018","Public*2018",
+                     "Privé lucratif*2019", "Privé non lucratif*2019","Public*2019")
 
 ####################################################################################################################
 # TRIS
@@ -945,6 +958,8 @@ CCAM$dms_globale <- as.numeric(CCAM$dms_globale)
 #Colonne pour pondérer la dms par le nombres d'actes
 CCAM$actes_dms <- CCAM$dms_globale*CCAM$nb_actes
 
+CCAM_save_2 <- CCAM
+
 
 
 ########################################
@@ -1186,6 +1201,21 @@ names(CCAM)[names(CCAM)=="part_ambu"] <- "part_ambu_tous_etab"
 
 CCAM$part_ambu <- CCAM$nb_sej_0_nuit / CCAM$nb_actes * 100
 
+CCAM$dms_globale <- gsub(",",".", CCAM$dms_globale)
+CCAM$dms_globale <- as.numeric(CCAM$dms_globale)
+
+#Colonne pour pondérer la dms par le nombres d'actes
+CCAM$actes_dms <- CCAM$dms_globale*CCAM$nb_actes
+
+
+
+#Pour les clusters, on crée une colonne FINESS + acte
+
+CCAM$FINESS_acte <- paste(CCAM$FINESS_ET,CCAM$acte, sep ="_")
+
+
+CCAM_save <- CCAM
+CCAM <- CCAM[CCAM$selection ==1,]
 #A9 conversion en numérique
 CCAM$A9 <- gsub(",",".", CCAM$A9)
 CCAM$A9 <- as.numeric(CCAM$A9)
@@ -1224,18 +1254,7 @@ CCAM$A11 <- as.numeric(CCAM$A11)
 
 #Durée moyenne de séjour
 #Conversion en numérique
-CCAM$dms_globale <- gsub(",",".", CCAM$dms_globale)
-CCAM$dms_globale <- as.numeric(CCAM$dms_globale)
 
-#Colonne pour pondérer la dms par le nombres d'actes
-CCAM$actes_dms <- CCAM$dms_globale*CCAM$nb_actes
-
-CCAM_save <- CCAM
-CCAM <- CCAM[CCAM$selection ==1,]
-
-#Pour les clusters, on crée une colonne FINESS + acte
-
-CCAM$FINESS_acte <- paste(CCAM$FINESS_ET,CCAM$acte, sep ="_")
 
 CCAM$tarif <- ifelse(is.na(CCAM$tarif_sect1_1), CCAM$tarif_sect1_4,CCAM$tarif_sect1_1)
 CCAM$tarif[is.na(CCAM$tarif)] <- 0
@@ -1246,6 +1265,7 @@ CCAM$A9_tarif <- CCAM$A9*CCAM$tarif
 
 
 
+CCAM_save_2 <- CCAM
 ###Description var de controle
 
 
@@ -1260,6 +1280,8 @@ for (x in names(table_A9_actes)){
 }
 #Conversion en latex
 print(xtable(table_A9_actes, caption = "Valeurs moyennes de A9"), caption.placement = "top")
+
+
 
 weighted.quantile(CCAM$A9,CCAM$nb_actes,seq(0,1,0.25))
 ###Test variable de controle
@@ -1321,10 +1343,57 @@ cor.test(CCAM$A11,CCAM$part_ambu, method="pearson")
 cor.test(CCAM$tarif,CCAM$part_ambu, method="pearson")
 
 
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
 
+#TOUS les actes
+regression1 <- lm.cluster( data = CCAM_save, formula = part_ambu ~ cat_libelle*annee, weights = CCAM_save$nb_actes, cluster = "FINESS_acte")
+clustered.se1 <- sqrt(diag(regression1$vcov))
+regression1 <- lm( part_ambu ~ cat_libelle*annee, data = CCAM_save, weights = nb_actes)
+
+regression2 <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+clustered.se2 <- sqrt(diag(regression2$vcov))
+regression2 <- lm( part_ambu ~ cat_libelle*annee, data = CCAM, weights = nb_actes)
+
+stargazer(regression1, regression1, regression2,regression2, se=list(NULL, clustered.se1, NULL,clustered.se2),
+          column.labels=c("Overall","clustered (Overall)","Selection","clustered (Selection)"),
+          align=TRUE, title ="Modèles de base appliqué à la part d’actes en ambulatoire",no.space=TRUE,
+          covariate.labels = liste_noms,omit.stat=c("LL","ser","f"), dep.var.labels =c("Pourcentage d'ambulatoire"))
+
+regression1 <- lm.cluster( data = CCAM_save, formula = part_ambu ~ cat_libelle, weights = CCAM_save$nb_actes, cluster = "FINESS_acte")
+clustered.se1 <- sqrt(diag(regression1$vcov))
+regression1 <- lm( part_ambu ~ cat_libelle, data = CCAM_save, weights = nb_actes)
+
+regression2 <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+clustered.se2 <- sqrt(diag(regression2$vcov))
+regression2 <- lm( part_ambu ~ cat_libelle, data = CCAM, weights = nb_actes)
+
+stargazer(regression1, regression1, regression2,regression2, se=list(NULL, clustered.se1, NULL,clustered.se2),
+          column.labels=c("Overall","clustered (Overall)","Selection","clustered (Selection)"),
+          align=TRUE, title ="Modèles de base appliqué à la part d’actes en ambulatoire",no.space=TRUE,
+          covariate.labels =  c("Privé lucratif","Privé non-lucratif","Public"),omit.stat=c("LL","ser","f"), dep.var.labels =c("Pourcentage d'ambulatoire"))
 
 
+regression1 <- lm.cluster( data = CCAM_save, formula = part_ambu ~ annee, weights = CCAM_save$nb_actes, cluster = "FINESS_acte")
+clustered.se1 <- sqrt(diag(regression1$vcov))
+regression1 <- lm( part_ambu ~ annee, data = CCAM_save, weights = nb_actes)
+
+regression2 <- lm.cluster( data = CCAM, formula = part_ambu ~ annee, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+clustered.se2 <- sqrt(diag(regression2$vcov))
+regression2 <- lm( part_ambu ~ annee, data = CCAM, weights = nb_actes)
+
+stargazer(regression1, regression1, regression2,regression2, se=list(NULL, clustered.se1, NULL,clustered.se2),
+          column.labels=c("Overall","clustered (Overall)","Selection","clustered (Selection)"),
+          align=TRUE, title ="Modèles de base appliqué à la part d’actes en ambulatoire",no.space=TRUE,
+          covariate.labels =  c("2016","2017","2018","2019"),omit.stat=c("LL","ser","f"), dep.var.labels =c("Pourcentage d'ambulatoire"))
 
 
 
@@ -1335,7 +1404,8 @@ row.names(reg_table) <- liste_noms_A9
 names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
 print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
-vif(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
 regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
 reg_table <- as.data.frame(summary(regression))
@@ -1343,66 +1413,552 @@ row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif"
 names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
 print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9_dms, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+clustered.se <- sqrt(diag(regression$vcov))
+regression <- lm( part_ambu ~ cat_libelle*annee + A9, data = CCAM, weights = nb_actes)
+robust.se <- sqrt(diag(vcovHC(regression, type = "HC")))
+
+stargazer(regression, regression, regression, se=list(NULL, clustered.se, robust.se),
+          column.labels=c("Default","cluster se","robust se"), align=TRUE, title ="Modèles de base avec contrôle par A9")
+
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9","Privé lucratif*A9","Privé non lucratif*A9","Public*A9")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9 + A9_dms, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+
+CCAM$A9_tarif <- (CCAM$A9_tarif - min(CCAM$A9_tarif))/(max(CCAM$A9_tarif)-min(CCAM$A9_tarif))*100
+
+#Controle par A9_tarification
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9_tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+liste_noms_A9[liste_noms_A9 == "A9"] <- "A9*tarification"
+row.names(reg_table) <- liste_noms_A9
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9*tarification",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9 + tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9_tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9*tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9*tarification",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9_dms + tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+#Controle A9 + tarif
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9+tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- liste_noms_A9_t
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9 et tarification",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9 + A9_dms + tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9+ tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9","tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9 et tarification",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9 + A10, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+#Controle A9 + tarif + interaction
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9*tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)","Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019", "A9", "tarification",
+                          "Privé lucratif*2016", "Privé non lucratif*2016","Public*2016",
+                          "Privé lucratif*2017", "Privé non lucratif*2017","Public*2017",
+                          "Privé lucratif*2018", "Privé non lucratif*2018","Public*2018",
+                          "Privé lucratif*2019", "Privé non lucratif*2019","Public*2019", "A9*tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9 et tarification",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle+ A9*tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9","tarification","A9*tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9 et tarification",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9 + A10 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+
+#Controle A9 + tarif + interaction + A10 + A11
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9*tarif + A10 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)","Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019", "A9", "tarification","A10","A11",
+                          "Privé lucratif*2016", "Privé non lucratif*2016","Public*2016",
+                          "Privé lucratif*2017", "Privé non lucratif*2017","Public*2017",
+                          "Privé lucratif*2018", "Privé non lucratif*2018","Public*2018",
+                          "Privé lucratif*2019", "Privé non lucratif*2019","Public*2019", "A9*tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9 et tarification",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9_dms + A10 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle+ A9*tarif + A10 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9","tarification","A10","A11","A9*tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèle ref{eqn:controle} avec contrôle par A10 et A11",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9_dms + tarif + A10 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+
+#Controle A9 + tarif + interaction + A10 + A11 + interaction
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9*tarif + A10*A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)","Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019", "A9", "tarification","A10","A11",
+                          "Privé lucratif*2016", "Privé non lucratif*2016","Public*2016",
+                          "Privé lucratif*2017", "Privé non lucratif*2017","Public*2017",
+                          "Privé lucratif*2018", "Privé non lucratif*2018","Public*2018",
+                          "Privé lucratif*2019", "Privé non lucratif*2019","Public*2019", "A9*tarification","A10*A11")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèle ref{eqn:controle} avec contrôle par A10 et A11 (+interaction)",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9 + A9_dms + tarif + A10 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle+ A9*tarif + A10*A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9","tarification","A10","A11","A9*tarification","A10*A11")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèle ref{eqn:controle} avec contrôle par A10 et A11 (+interaction)",digits=c(0,3,3,2,3)), caption.placement = "top")
 summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
 
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~  dms_globale  , weights = CCAM$nb_actes, cluster = "FINESS_acte")
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle+ A9*tarif +A10*A11 +part_lit, weights = CCAM$nb_actes, cluster = "FINESS_acte")
 summary(regression$lm_res)
-vif(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + inv_dms, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle+ A9*tarif +A10*A11 +part_pla, weights = CCAM$nb_actes, cluster = "FINESS_acte")
 summary(regression$lm_res)
-vif(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle+ A9*tarif +A10*A11 +part_lit +part_pla, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
 
-regression <- lm(part_ambu ~dms_globale, data =CCAM,weights = nb_actes)
-summary(regression)
-print(1/(1-summary(regression)$r.squared))
+#####################################################################################################
+#CHIRURGIE
+###################################################################################################
+CCAM <- CCAM[CCAM$categorie_acte =="Actes chirurgicaux",]
+##Part d'actes en ambulatoire
+
+#Somme des actes en ambu
+table_actes_ambu <- description_agrega(sum, "nb_sej_0_nuit", "cat_libelle", "annee", NA, NA, "ID", sum, "test", TRUE)
+#Somme des actes
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", NA, NA, "ID", sum, "test", TRUE)
+#Part d'ambu en divisant le 1er tableau par le deuxième
+for (x in names(table_actes_ambu)){
+  table_actes_ambu[x] <- round(table_actes_ambu[x]/table_actes[x]*100,2)
+}
+#Conversion lateX
+print(xtable(table_actes_ambu, caption = "Pourcentage d'actes de chirurgie effectués en ambulatoire (%)"), caption.placement = "top")
+
+weighted.quantile(CCAM$part_ambu,CCAM$nb_actes,seq(0,1,0.25))
 
 
-cor.test(CCAM$part_ambu,CCAM$A9_dms, method ="pearson")
-cor.test(CCAM$part_ambu,CCAM$A9, method ="pearson")
-cor.test(CCAM$part_ambu,CCAM$dms_globale, method ="pearson")
-cor.test(CCAM$part_ambu,CCAM$A9_tarif, method ="pearson")
+###Durée moyenne de séjour 
+
+
+#Somme des actes*dms
+table_actes_dms <- description_agrega(sum, "actes_dms", "cat_libelle", "annee", NA, NA, "ID", sum, "test", TRUE)
+#Somme des nombres d'actes
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", NA, NA, "ID", sum, "test", TRUE)
+#On divise le premier tableau par le deuxieme
+for (x in names(table_actes_dms)){
+  table_actes_dms[x] <- table_actes_dms[x]/table_actes[x]
+}
+#Conversion en latex
+print(xtable(table_actes_dms, caption = "Durée moyenne des séjours en chirurgie"), caption.placement = "top")
+
+weighted.quantile(CCAM$dms_globale,CCAM$nb_actes,seq(0,1,0.25))
 
 
 
 
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- liste_noms
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base appliqué à la part d’actes chirugicaux en ambulatoire ",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+
+#Controle par A9
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- liste_noms_A9
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base appliqué à la chirugie avec contrôle par A9",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+
+
+
+
+#Controle par A9_tarification
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9_tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9*tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9*tarification (chirurgie)",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+#Controle A9 + tarif
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9+tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- liste_noms_A9_t
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9 et tarification",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9+ tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9","tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9 et tarification (chirurgie)",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+#Controle A9 + tarif + interaction
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9*tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)","Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019", "A9", "tarification",
+                          "Privé lucratif*2016", "Privé non lucratif*2016","Public*2016",
+                          "Privé lucratif*2017", "Privé non lucratif*2017","Public*2017",
+                          "Privé lucratif*2018", "Privé non lucratif*2018","Public*2018",
+                          "Privé lucratif*2019", "Privé non lucratif*2019","Public*2019", "A9*tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9, tarification et leur interaction (chirurgie)",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle+ A9*tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9","tarification","A9*tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9 et tarification",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+#Controle A9 + tarif + interaction + A10 + A11
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9*tarif + A10 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)","Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019", "A9", "tarification","A10","A11",
+                          "Privé lucratif*2016", "Privé non lucratif*2016","Public*2016",
+                          "Privé lucratif*2017", "Privé non lucratif*2017","Public*2017",
+                          "Privé lucratif*2018", "Privé non lucratif*2018","Public*2018",
+                          "Privé lucratif*2019", "Privé non lucratif*2019","Public*2019", "A9*tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9 et tarification",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle+ A9*tarif + A10 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9","tarification","A10","A11","A9*tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèle ref{eqn:controle} avec contrôle par A10 et A11 (chirurgie)",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+#Controle A9 + tarif + interaction + A10 + A11 + interaction
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9*tarif + A10*A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)","Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019", "A9", "tarification","A10","A11",
+                          "Privé lucratif*2016", "Privé non lucratif*2016","Public*2016",
+                          "Privé lucratif*2017", "Privé non lucratif*2017","Public*2017",
+                          "Privé lucratif*2018", "Privé non lucratif*2018","Public*2018",
+                          "Privé lucratif*2019", "Privé non lucratif*2019","Public*2019", "A9*tarification","A10*A11")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèle ref{eqn:controle} avec contrôle par A10 et A11 (+interaction)",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle+ A9*tarif + A10*A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9","tarification","A10","A11","A9*tarification","A10*A11")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèle ref{eqn:controle} avec contrôle par A10, A11 +interaction (chirurgie)",digits=c(0,3,3,2,3)), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+
+###Medecine diag
+
+CCAM <- CCAM_save_2[CCAM_save_2$categorie_acte =="Actes techniques médicaux diagnostiques",]
+##Part d'actes en ambulatoire
+
+#Somme des actes en ambu
+table_actes_ambu <- description_agrega(sum, "nb_sej_0_nuit", "cat_libelle", "annee", NA, NA, "ID", sum, "test", TRUE)
+#Somme des actes
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", NA, NA, "ID", sum, "test", TRUE)
+#Part d'ambu en divisant le 1er tableau par le deuxième
+for (x in names(table_actes_ambu)){
+  table_actes_ambu[x] <- round(table_actes_ambu[x]/table_actes[x]*100,2)
+}
+#Conversion lateX
+print(xtable(table_actes_ambu, caption = "Pourcentage d'actes de médecine diagnostique effectués en ambulatoire (%)"), caption.placement = "top")
+
+weighted.quantile(CCAM$part_ambu,CCAM$nb_actes,seq(0,1,0.25))
+
+
+###Durée moyenne de séjour 
+
+
+#Somme des actes*dms
+table_actes_dms <- description_agrega(sum, "actes_dms", "cat_libelle", "annee", NA, NA, "ID", sum, "test", TRUE)
+#Somme des nombres d'actes
+table_actes <- description_agrega(sum, "nb_actes", "cat_libelle", "annee", NA, NA, "ID", sum, "test", TRUE)
+#On divise le premier tableau par le deuxieme
+for (x in names(table_actes_dms)){
+  table_actes_dms[x] <- table_actes_dms[x]/table_actes[x]
+}
+#Conversion en latex
+print(xtable(table_actes_dms, caption = "Durée moyenne des séjours en médecine diagnostique"), caption.placement = "top")
+
+weighted.quantile(CCAM$dms_globale,CCAM$nb_actes,seq(0,1,0.25))
+
+
+
+
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- liste_noms
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base appliqué à la part d’actes diagnostiques en ambulatoire ",digits=c(0,3,3,2,3),align="l|cccc"), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9",digits=c(0,3,3,2,3),align="l|cccc"), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+
+#Controle par A9
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- liste_noms_A9
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base appliqué à la médecine diagnostique avec contrôle par A9",digits=c(0,3,3,2,3),align="l|cccc"), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9",digits=c(0,3,3,2,3),align="l|cccc"), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+
+
+
+
+#Controle par A9_tarification
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9_tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9*tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9*tarification (chirurgie)",digits=c(0,3,3,2,3),align="l|cccc"), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+#Controle A9 + tarif
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9+tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- liste_noms_A9_t
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9 et tarification",digits=c(0,3,3,2,3),align="l|cccc"), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9+ tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9","tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9 et tarification (médecine diagnostique)",digits=c(0,3,3,2,3),align="l|cccc"), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+#Controle A9 + tarif + interaction
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9*tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)","Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019", "A9", "tarification",
+                          "Privé lucratif*2016", "Privé non lucratif*2016","Public*2016",
+                          "Privé lucratif*2017", "Privé non lucratif*2017","Public*2017",
+                          "Privé lucratif*2018", "Privé non lucratif*2018","Public*2018",
+                          "Privé lucratif*2019", "Privé non lucratif*2019","Public*2019", "A9*tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9, tarification et leur interaction (médecine diagnostique)",digits=c(0,3,3,2,3),align="l|cccc"), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle+ A9*tarif, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9","tarification","A9*tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9 et tarification",digits=c(0,3,3,2,3),align="l|cccc"), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+#Controle A9 + tarif + interaction + A10 + A11
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9*tarif + A10 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)","Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019", "A9", "tarification","A10","A11",
+                          "Privé lucratif*2016", "Privé non lucratif*2016","Public*2016",
+                          "Privé lucratif*2017", "Privé non lucratif*2017","Public*2017",
+                          "Privé lucratif*2018", "Privé non lucratif*2018","Public*2018",
+                          "Privé lucratif*2019", "Privé non lucratif*2019","Public*2019", "A9*tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèle ref{eqn:controle} avec contrôle par A10 et A11 (médecine diagnostique)",digits=c(0,3,3,2,3),align="l|cccc"), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle+ A9*tarif + A10 + A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9","tarification","A10","A11","A9*tarification")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèle ref{eqn:controle} avec contrôle par A10 et A11 (médecine diagnostique)",digits=c(0,3,3,2,3),align="l|cccc"), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+#Controle A9 + tarif + interaction + A10 + A11 + interaction
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9*tarif + A10*A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)","Privé lucratif", "Privé non lucratif","Public","2016","2017","2018","2019", "A9", "tarification","A10","A11",
+                          "Privé lucratif*2016", "Privé non lucratif*2016","Public*2016",
+                          "Privé lucratif*2017", "Privé non lucratif*2017","Public*2017",
+                          "Privé lucratif*2018", "Privé non lucratif*2018","Public*2018",
+                          "Privé lucratif*2019", "Privé non lucratif*2019","Public*2019", "A9*tarification","A10*A11")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèle ref{eqn:controle} avec contrôle par A10 et A11 (+interaction)",digits=c(0,3,3,2,3),align="l|cccc"), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
+
+
+
+regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle+ A9*tarif + A10*A11, weights = CCAM$nb_actes, cluster = "FINESS_acte")
+reg_table <- as.data.frame(summary(regression))
+row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9","tarification","A10","A11","A9*tarification","A10*A11")
+names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
+print(xtable(reg_table ,caption = "Modèle ref{eqn:controle} avec contrôle par A10, A11 +interaction (médecine diagnostique)",digits=c(0,3,3,2,3),align="l|cccc"), caption.placement = "top")
+summary(regression$lm_res)
+AIC(regression$lm_res)
+BIC(regression$lm_res)
 
 
 
@@ -1453,14 +2009,14 @@ regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = par
 reg_table <- as.data.frame(summary(regression))
 row.names(reg_table) <- liste_noms
 names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
-print(xtable(reg_table ,caption = "Modèles de base appliqué à la part d'actes en ambulatoire",digits=c(0,3,3,2,3)), caption.placement = "top")
+print(xtable(reg_table ,caption = "Modèles de base appliqué à la part d'actes en ambulatoire",digits=c(0,3,3,2,3),align="l|cccc"), caption.placement = "top")
 summary(regression$lm_res)
 
 regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = part_ambu ~ cat_libelle, weights = CCAM$nb_actes[CCAM$select_HZHE0020 == 1], cluster = "FINESS_ET")
 reg_table <- as.data.frame(summary(regression))
 row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public")
 names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
-print(xtable(reg_table ,caption = "Modèle de base appliqué à la part d'actes en ambulatoire",digits=c(0,3,3,2,3)), caption.placement = "top")
+print(xtable(reg_table ,caption = "Modèle de base appliqué à la part d'actes en ambulatoire",digits=c(0,3,3,2,3),align="l|cccc"), caption.placement = "top")
 summary(regression$lm_res)
 
 
@@ -1504,38 +2060,6 @@ for (x in names(table_actes_dms)){
 print(xtable(table_actes_dms, caption = "Durée moyenne de séjour pour l'actes HZHE0020"), caption.placement = "top")
 
 
-##COntrole par la DMS ???
-
-regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = part_ambu ~ cat_libelle*annee + dms_globale, weights = CCAM$nb_actes[CCAM$select_HZHE0020 == 1], cluster = "FINESS_ET")
-summary(regression$lm_res)
-summary(regression)
-
-
-#Controle par indicatrice de ds > 2
-
-
-
-CCAM$dms_mean <- ifelse(CCAM$dms_globale > mean(CCAM$dms_globale[CCAM$select_HZHE0020 == 1]), 1, 0)
-
-regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = part_ambu ~ cat_libelle + dms_mean, weights = CCAM$nb_actes[CCAM$select_HZHE0020 == 1], cluster = "FINESS_ET")
-summary(regression$lm_res)
-summary(regression)
-
-
-CCAM$dms_3 <- ifelse(CCAM$dms_globale > 3, 1, 0)
-
-regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = part_ambu ~ cat_libelle + dms_3, weights = CCAM$nb_actes[CCAM$select_HZHE0020 == 1], cluster = "FINESS_ET")
-summary(regression$lm_res)
-summary(regression)
-
-regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = part_ambu ~ cat_libelle*dms_3, weights = CCAM$nb_actes[CCAM$select_HZHE0020 == 1], cluster = "FINESS_ET")
-summary(regression$lm_res)
-summary(regression)
-
-
-regression <- lm.cluster( data = CCAM[CCAM$select_HZHE0020 == 1,], formula = part_ambu ~ cat_libelle*dms_3 + A9, weights = CCAM$nb_actes[CCAM$select_HZHE0020 == 1], cluster = "FINESS_ET")
-summary(regression$lm_res)
-summary(regression)
 
 
 
@@ -1545,6 +2069,8 @@ summary(regression)
 
 
 ###Vérification aprrox nb_actes = nb_sejsea ou nb_sej_0_nuit = nb_acte_ambu
+
+CCAM <- CCAM_save[CCAM_save$selection == 1,]
 
 CCAM_18_19 <- CCAM[CCAM$annee == "2018" | CCAM$annee == "2019",]
 
@@ -1561,8 +2087,12 @@ CCAM_18_19$nb_acte_ambu[CCAM_18_19$nb_acte_ambu == "."] <- NA
 CCAM_18_19$nb_sej_0_nuit <- as.numeric(CCAM_18_19$nb_sej_0_nuit)
 CCAM_18_19$nb_acte_ambu <- as.numeric(CCAM_18_19$nb_acte_ambu)
 
+CCAM_18_19 <- CCAM_18_19[!is.na(CCAM_18_19$nb_acte_ambu)&!is.na(CCAM_18_19$nb_sej_0_nuit),]
+
 prop.table(table(CCAM_18_19$nb_sej_0_nuit == CCAM_18_19$nb_acte_ambu))
 #75% de corresponance entre la colonne nb_actes et nb_sejsea sans prendre en compte les NA
+
+prop.table(table(CCAM_18_19$nb_sejsea == CCAM_18_19$nb_actes))
 
 #Colonne difference entre nb_actes et nb_sejsea
 CCAM_18_19$diff_actes_sej <- CCAM_18_19$nb_actes - CCAM_18_19$nb_sejsea
@@ -1574,29 +2104,33 @@ CCAM_18_19$diff_actes_sej_ambu <- CCAM_18_19$nb_acte_ambu - CCAM_18_19$nb_sej_0_
 summary(CCAM_18_19$diff_actes_sej)
 summary(CCAM_18_19$diff_actes_sej_ambu)
 
+shapiro.test(CCAM_18_19$nb_acte_ambu)
+shapiro.test(CCAM_18_19$nb_sej_0_nuit)
+
+
+var.test(CCAM_18_19$nb_acte_ambu, CCAM_18_19$nb_sej_0_nuit)
+var.test(CCAM_18_19$nb_actes, CCAM_18_19$nb_sejsea)
 
 t.test(CCAM_18_19$nb_acte_ambu, CCAM_18_19$nb_sej_0_nuit, alternative = "two.sided", var.equal = TRUE)
 
-t.test(CCAM_18_19[CCAM_18_19$acte =="HMFC0040",]$nb_acte_ambu, CCAM_18_19[CCAM_18_19$acte =="HMFC0040",]$nb_sej_0_nuit, alternative = "two.sided", var.equal = TRUE)
+t.test(CCAM_18_19$nb_actes, CCAM_18_19$nb_sejsea, alternative = "two.sided", var.equal = TRUE)
 
-regression <- lm(nb_acte_ambu ~ nb_sej_0_nuit, data = CCAM_18_19[CCAM_18_19$acte =="HMFC0040",])
+
+
+
+ks.test(CCAM_18_19$nb_acte_ambu, CCAM_18_19$nb_sej_0_nuit,alternative = c("two.sided", "less", "greater"))
+ks.test(CCAM_18_19$nb_actes, CCAM_18_19$nb_sejsea,alternative = c("two.sided", "less", "greater"))
+
+
+
+
+
+regression <- lm(nb_acte_ambu ~ nb_sej_0_nuit, data = CCAM_18_19)
 summary(regression)
 
-regression <- lm(nb_acte_ambu ~ nb_sej_0_nuit, data = CCAM_18_19[CCAM_18_19$acte =="NEKA0200",])
+regression <- lm(nb_actes ~ nb_sejsea, data = CCAM_18_19)
 summary(regression)
 
-regression_annee <- lm(nb_acte_ambu ~ nb_sej_0_nuit + annee, data = CCAM_18_19[CCAM_18_19$acte =="HMFC0040",])
-summary(regression_annee)
-
-regression_cat <- lm(nb_acte_ambu ~ nb_sej_0_nuit + cat_libelle , data = CCAM_18_19[CCAM_18_19$acte =="HMFC0040",])
-summary(regression_cat)
-
-
-regression_all <- lm(nb_acte_ambu ~ nb_sej_0_nuit + annee + cat_libelle , data = CCAM_18_19[CCAM_18_19$acte =="HMFC0040",])
-summary(regression_all)
-
-regression_pas <- lm(nb_acte_ambu ~ nb_sej_0_nuit + PAS , data = CCAM_18_19[CCAM_18_19$acte =="HMFC0040",])
-summary(regression_pas)
 
 # ??????
 #On effectue la vérification sur les 20 actes les plus réalisés ?
