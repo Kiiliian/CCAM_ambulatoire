@@ -16,6 +16,8 @@ library(sandwich)
 library(spatstat)
 library(car)
 library(stargazer)
+library(lmtest) 
+library(estimatr)
 
 #######################################################################################################
 
@@ -1355,78 +1357,209 @@ BIC(regression$lm_res)
 
 
 #TOUS les actes
-regression1 <- lm.cluster( data = CCAM_save, formula = part_ambu ~ cat_libelle*annee, weights = CCAM_save$nb_actes, cluster = "FINESS_acte")
-clustered.se1 <- sqrt(diag(regression1$vcov))
-regression1 <- lm( part_ambu ~ cat_libelle*annee, data = CCAM_save, weights = nb_actes)
 
-regression2 <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee, weights = CCAM$nb_actes, cluster = "FINESS_acte")
-clustered.se2 <- sqrt(diag(regression2$vcov))
-regression2 <- lm( part_ambu ~ cat_libelle*annee, data = CCAM, weights = nb_actes)
-
-stargazer(regression1, regression1, regression2,regression2, se=list(NULL, clustered.se1, NULL,clustered.se2),
-          column.labels=c("Overall","clustered (Overall)","Selection","clustered (Selection)"),
-          align=TRUE, title ="Modèles de base appliqué à la part d’actes en ambulatoire",no.space=TRUE,
-          covariate.labels = liste_noms,omit.stat=c("LL","ser","f"), dep.var.labels =c("Pourcentage d'ambulatoire"))
-
-regression1 <- lm.cluster( data = CCAM_save, formula = part_ambu ~ cat_libelle, weights = CCAM_save$nb_actes, cluster = "FINESS_acte")
-clustered.se1 <- sqrt(diag(regression1$vcov))
 regression1 <- lm( part_ambu ~ cat_libelle, data = CCAM_save, weights = nb_actes)
 
-regression2 <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle, weights = CCAM$nb_actes, cluster = "FINESS_acte")
-clustered.se2 <- sqrt(diag(regression2$vcov))
-regression2 <- lm( part_ambu ~ cat_libelle, data = CCAM, weights = nb_actes)
+regression1_robust <- lm_robust(part_ambu ~ cat_libelle,
+                                se_type = "stata",
+                                data = CCAM_save)
 
-stargazer(regression1, regression1, regression2,regression2, se=list(NULL, clustered.se1, NULL,clustered.se2),
-          column.labels=c("Overall","clustered (Overall)","Selection","clustered (Selection)"),
+
+regression1_clustered <- lm_robust(part_ambu ~ cat_libelle,
+                                   se_type = "stata",
+                                   clusters = FINESS_acte,
+                                   data = CCAM_save)
+
+
+
+stargazer(regression1, regression1, regression1, se=list(NULL, regression1_robust$std.error, regression1_clustered$std.error),
+          column.labels=c("default","robust","robust and clustered"),
           align=TRUE, title ="Modèles de base appliqué à la part d’actes en ambulatoire",no.space=TRUE,
-          covariate.labels =  c("Privé lucratif","Privé non-lucratif","Public"),omit.stat=c("LL","ser","f"), dep.var.labels =c("Pourcentage d'ambulatoire"))
+          covariate.labels = c("Privé lucratif","Privé non lucratif","Public"), dep.var.labels =c("Pourcentage d'ambulatoire"))
 
 
-regression1 <- lm.cluster( data = CCAM_save, formula = part_ambu ~ annee, weights = CCAM_save$nb_actes, cluster = "FINESS_acte")
-clustered.se1 <- sqrt(diag(regression1$vcov))
+
+
 regression1 <- lm( part_ambu ~ annee, data = CCAM_save, weights = nb_actes)
 
-regression2 <- lm.cluster( data = CCAM, formula = part_ambu ~ annee, weights = CCAM$nb_actes, cluster = "FINESS_acte")
-clustered.se2 <- sqrt(diag(regression2$vcov))
-regression2 <- lm( part_ambu ~ annee, data = CCAM, weights = nb_actes)
+regression1_robust <- lm_robust(part_ambu ~ annee,
+                                se_type = "stata",
+                                data = CCAM_save)
 
-stargazer(regression1, regression1, regression2,regression2, se=list(NULL, clustered.se1, NULL,clustered.se2),
-          column.labels=c("Overall","clustered (Overall)","Selection","clustered (Selection)"),
+
+regression1_clustered <- lm_robust(part_ambu ~ annee,
+                                   se_type = "stata",
+                                   clusters = FINESS_acte,
+                                   data = CCAM_save)
+
+
+
+stargazer(regression1, regression1, regression1, se=list(NULL, regression1_robust$std.error, regression1_clustered$std.error),
+          column.labels=c("default","robust","robust and clustered"),
           align=TRUE, title ="Modèles de base appliqué à la part d’actes en ambulatoire",no.space=TRUE,
-          covariate.labels =  c("2016","2017","2018","2019"),omit.stat=c("LL","ser","f"), dep.var.labels =c("Pourcentage d'ambulatoire"))
+          covariate.labels = c("2016","2017","2018","2019"), dep.var.labels =c("Pourcentage d'ambulatoire"))
+
+
+
+
+
+regression1 <- lm( part_ambu ~ cat_libelle*annee, data = CCAM_save, weights = nb_actes)
+
+regression1_robust <- lm_robust(part_ambu ~ cat_libelle*annee,
+                                   se_type = "stata",
+                                   data = CCAM_save)
+
+
+regression1_clustered <- lm_robust(part_ambu ~ cat_libelle*annee,
+                                      se_type = "stata",
+                                      clusters = FINESS_acte,
+                                      data = CCAM_save)
+
+
+
+stargazer(regression1, regression1, regression1, se=list(NULL, regression1_robust$std.error, regression1_clustered$std.error),
+          column.labels=c("default","robust","robust and clustered"),
+          align=TRUE, title ="Modèles de base appliqué à la part d’actes en ambulatoire",no.space=TRUE,
+          covariate.labels = liste_noms, dep.var.labels =c("Pourcentage d'ambulatoire"))
+
+
+#Actes sélectionnés
+
+regression1 <- lm( part_ambu ~ cat_libelle, data = CCAM, weights = nb_actes)
+
+regression1_robust <- lm_robust(part_ambu ~ cat_libelle,
+                                se_type = "stata",
+                                data = CCAM)
+
+
+regression1_clustered <- lm_robust(part_ambu ~ cat_libelle,
+                                   se_type = "stata",
+                                   clusters = FINESS_acte,
+                                   data = CCAM)
+
+
+
+stargazer(regression1, regression1, regression1, se=list(NULL, regression1_robust$std.error, regression1_clustered$std.error),
+          column.labels=c("default","robust","robust and clustered"),
+          align=TRUE, title ="Modèles de base appliqué à la part d’actes sélectionnés en ambulatoire",no.space=TRUE,
+          covariate.labels = c("Privé lucratif","Privé non lucratif","Public"), dep.var.labels =c("Pourcentage d'ambulatoire"))
+
+
+
+
+regression1 <- lm( part_ambu ~ annee, data = CCAM, weights = nb_actes)
+
+regression1_robust <- lm_robust(part_ambu ~ annee,
+                                se_type = "stata",
+                                data = CCAM)
+
+
+regression1_clustered <- lm_robust(part_ambu ~ annee,
+                                   se_type = "stata",
+                                   clusters = FINESS_acte,
+                                   data = CCAM)
+
+
+
+stargazer(regression1, regression1, regression1, se=list(NULL, regression1_robust$std.error, regression1_clustered$std.error),
+          column.labels=c("default","robust","robust and clustered"),
+          align=TRUE, title ="Modèles de base appliqué à la part d’actes en ambulatoire",no.space=TRUE,
+          covariate.labels = c("2016","2017","2018","2019"), dep.var.labels =c("Pourcentage d'ambulatoire"))
+
+
+
+
+
+regression1 <- lm( part_ambu ~ cat_libelle*annee, data = CCAM, weights = nb_actes)
+
+regression1_robust <- lm_robust(part_ambu ~ cat_libelle*annee,
+                                se_type = "stata",
+                                data = CCAM)
+
+
+regression1_clustered <- lm_robust(part_ambu ~ cat_libelle*annee,
+                                   se_type = "stata",
+                                   clusters = FINESS_acte,
+                                   data = CCAM)
+
+
+
+stargazer(regression1, regression1, regression1, se=list(NULL, regression1_robust$std.error, regression1_clustered$std.error),
+          column.labels=c("default","robust","robust and clustered"),
+          align=TRUE, title ="Modèles de base appliqué à la part d’actes en ambulatoire",no.space=TRUE,
+          covariate.labels = liste_noms, dep.var.labels =c("Pourcentage d'ambulatoire"))
 
 
 
 #Controle par A9
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
-reg_table <- as.data.frame(summary(regression))
-row.names(reg_table) <- liste_noms_A9
-names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
-print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9",digits=c(0,3,3,2,3)), caption.placement = "top")
-summary(regression$lm_res)
-AIC(regression$lm_res)
-BIC(regression$lm_res)
+regression1 <- lm( part_ambu ~ cat_libelle +A9, data = CCAM, weights = nb_actes)
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle + A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
-reg_table <- as.data.frame(summary(regression))
-row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9")
-names(reg_table) <- c("Coefficient", "Ecart-type", "Stat. t", "p-valeur")
-print(xtable(reg_table ,caption = "Modèles de base avec contrôle par A9",digits=c(0,3,3,2,3)), caption.placement = "top")
-summary(regression$lm_res)
-AIC(regression$lm_res)
-BIC(regression$lm_res)
+regression1_robust <- lm_robust(part_ambu ~ cat_libelle +A9,
+                                se_type = "stata",
+                                data = CCAM)
+
+
+regression1_clustered <- lm_robust(part_ambu ~ cat_libelle +A9,
+                                   se_type = "stata",
+                                   clusters = FINESS_acte,
+                                   data = CCAM)
 
 
 
-regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*annee + A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
-clustered.se <- sqrt(diag(regression$vcov))
-regression <- lm( part_ambu ~ cat_libelle*annee + A9, data = CCAM, weights = nb_actes)
-robust.se <- sqrt(diag(vcovHC(regression, type = "HC")))
-
-stargazer(regression, regression, regression, se=list(NULL, clustered.se, robust.se),
-          column.labels=c("Default","cluster se","robust se"), align=TRUE, title ="Modèles de base avec contrôle par A9")
+stargazer(regression1, regression1, regression1, se=list(NULL, regression1_robust$std.error, regression1_clustered$std.error),
+          column.labels=c("default","robust","robust and clustered"),
+          align=TRUE, title ="Modèles de base avec contrôle par A9",no.space=TRUE,
+          covariate.labels = c("Privé lucratif","Privé non lucratif","Public"), dep.var.labels =c("Pourcentage d'ambulatoire"))
 
 
+
+
+regression1 <- lm( part_ambu ~ annee +A9, data = CCAM, weights = nb_actes)
+
+regression1_robust <- lm_robust(part_ambu ~ annee +A9,
+                                se_type = "stata",
+                                data = CCAM)
+
+
+regression1_clustered <- lm_robust(part_ambu ~ annee +A9,
+                                   se_type = "stata",
+                                   clusters = FINESS_acte,
+                                   data = CCAM)
+
+
+
+stargazer(regression1, regression1, regression1, se=list(NULL, regression1_robust$std.error, regression1_clustered$std.error),
+          column.labels=c("default","robust","robust and clustered"),
+          align=TRUE, title ="Modèles de base appliqué à la part d’actes en ambulatoire",no.space=TRUE,
+          covariate.labels = c("2016","2017","2018","2019"), dep.var.labels =c("Pourcentage d'ambulatoire"))
+
+
+
+
+
+regression1 <- lm( part_ambu ~ cat_libelle*annee +A9, data = CCAM, weights = nb_actes)
+
+regression1_robust <- lm_robust(part_ambu ~ cat_libelle*annee +A9,
+                                se_type = "stata",
+                                data = CCAM)
+
+
+regression1_clustered <- lm_robust(part_ambu ~ cat_libelle*annee +A9,
+                                   se_type = "stata",
+                                   clusters = FINESS_acte,
+                                   data = CCAM)
+
+
+
+stargazer(regression1, regression1, regression1, se=list(NULL, regression1_robust$std.error, regression1_clustered$std.error),
+          column.labels=c("default","robust","robust and clustered"),
+          align=TRUE, title ="Modèles de base appliqué à la part d’actes en ambulatoire",no.space=TRUE,
+          covariate.labels = liste_noms_A9, dep.var.labels =c("Pourcentage d'ambulatoire"))
+
+
+
+
+#Controle avec intéraction
 regression <- lm.cluster( data = CCAM, formula = part_ambu ~ cat_libelle*A9, weights = CCAM$nb_actes, cluster = "FINESS_acte")
 reg_table <- as.data.frame(summary(regression))
 row.names(reg_table) <- c("(Constante)", "Privé lucratif","Privé non lucratif","Public","A9","Privé lucratif*A9","Privé non lucratif*A9","Public*A9")
