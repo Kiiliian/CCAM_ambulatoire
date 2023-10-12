@@ -1,0 +1,105 @@
+\section{Approximation} \label{Approx}
+
+Pour cette étude on se base essentiellement sur les données de la base \textit{Open CCAM}, des années 2015 à 2019 contenant des informations sur les réalisations d'actes CCAM au sein de chaque établissement. Pour les années 2018 et 2019, on a principalement ces 5 variables : Nombre de réalisation d'un acte (\textit{nb\_actes}), Nombre de réalisation d'actes en ambulatoire (\textit{nb\_actes\_ambu}), la durée moyenne de séjour (\textit{dms\_globale}), le nombre de séjour pour un acte (\textit{nb\_sejsea}) et le nombre de séjour 0 nuit, correspondant aux séjours d'actes ambulatoires (\textit{nb\_sej\_0\_nuit}). \\
+
+L'idée est d'étudier la chirurgie ambulatoire de manière intensive, donc avec les ratios de type : $\frac{nb\_actes\_ambu}{nb\_actes}$ ou $\frac{nb\_sej\_0\_nuit}{nb\_sejsea}$. Cependant, pour les années 2015 à 2017, les données \textit{nb\_sejsea} et \textit{nb\_actes\_ambu} sont absentes. Afin de réaliser l'étude avec des ratios, il est donc nécessaire d'effectuer une approximation : 
+
+\begin{equation}\label{approx:acte}
+    nb\_sejsea \approx nb\_actes
+\end{equation}
+
+ou 
+
+\begin{equation}\label{approx:ambu}
+    nb\_actes\_ambu \approx nb\_sej\_0\_nuit
+\end{equation}
+
+\bigskip
+
+On va donc étudier ces deux approximations en se basant sur les données de 2018 et 2019, afin de voir si l'une des deux est plus pertinente. Nous allons uniquement nous baser sur les actes sélectionnés dans la sous-partie \ref{intervalle}.\\
+
+Pour l'approximation \ref{approx:acte}, le pourcentage de données correspondantes vaut 58.67\%. Pour l'approximation \ref{approx:ambu}, il vaut 46.51\% lorsqu'on prend en compte en compte les valeurs absentes comme des valeurs différentes et 72.71\% lorsqu'on ne prend pas en compte les valeurs absentes. Pour rappel les données absentes dans \textit{nb\_actes\_ambu} et \textit{nb\_sej\_0\_nuit} sont dues à la censure des données dont l'effectif est inférieur à 11. Dans la suite, on ne va étudier que les observations pour lesquelles \textit{nb\_actes\_ambu} et \textit{nb\_sej\_0\_nuit} sont présentes.
+
+On va maintenant regarder la répartition des résidus des approximations :
+\begin{itemize}
+    \item Pour l'approximation \ref{approx:acte}, on a : $residu = nb\_actes - nb\_sejsea$
+    \item Pour l'approximation \ref{approx:ambu}, on a : $residu = nb\_actes\_ambu - nb\_sej\_0\_nuit$
+\end{itemize}
+
+
+\begin{table}[!ht]
+\centering
+\caption{Résidus de l'approximation \ref{approx:acte}} 
+\begin{tabular}{cccccc}
+  \hline
+Min. & 1er Qu. & Médiane & Moyenne & 3e Qu. & Max. \\ 
+  \hline
+0.00 & 0.00 & 0.00 & 13.11 & 3.00 & 5418.00 \\ 
+   \hline
+\end{tabular}
+\end{table}
+
+\begin{table}[!ht]
+\centering
+\caption{Résidus de l'approximation \ref{approx:ambu}} 
+\begin{tabular}{cccccc}
+  \hline
+Min. & 1er Qu. & Médiane & Moyenne & 3e Qu. & Max. \\ 
+  \hline
+0.00 & 0.00 & 0.00 & 4.46 & 1.00 & 4211.00 \\ 
+   \hline
+\end{tabular}
+\end{table}
+
+On observe que les distributions des variables  \textit{nb\_actes\_ambu} et \textit{nb\_sej\_0\_nuit} sont assez proches, comparativement plus proches que les distributions des variables \textit{nb\_actes} et \textit{nb\_sejsea}. L'approximation \ref{approx:ambu} parait donc préférable.
+
+Par la suite, on va effectuer deux séries de tests, des tests de Student et de Kolmogorov-Smirnov afin de comparer, respectivement, les moyennes  et les distributions de \textit{nb\_actes} et \textit{nb\_sejsea} puis de \textit{nb\_actes\_ambu} et \textit{nb\_sej\_0\_nuit}. Les p-valeurs et intervalles de confiance sont calculés au seuil de 95\%.\\
+
+On note $\mu_X$ la moyenne théorique de $X$, $\overline{X}$ sa moyenne empirique de $X$, $\sigma^2_X$ sa variance et $n_X$ sa taille. Pour tester si les moyennes de nos variables sont identiques, on effectue les tests bilatéraux de Student suivants : 
+
+$$\left\{
+    \begin{array}{ll}
+        H_0 : \mu_{nb\_actes} = \mu_{nb\_sejsea}\\
+        H_1 : \mu_{nb\_actes} \ne \mu_{nb\_sejsea}
+    \end{array} 
+\right.$$
+
+$$\left\{
+    \begin{array}{ll}
+        H_0 : \mu_{nb\_actes\_ambu} = \mu_{nb\_sej\_0\_nuit}\\
+        H_1 : \mu_{nb\_actes\_ambu} \ne \mu_{nb\_sej\_0\_nuit}
+    \end{array} 
+\right.$$
+
+
+\bigskip
+
+La statistique t de ce test, se calcule de la manière suivante :
+
+$$t = \frac{((\overline{X_1}-\overline{X_2})-(\mu_{1}-\mu_{2}))}{\sqrt{\frac{\sigma^2_{1}}{n_{1}}+\frac{\sigma^2_{2}}{n_{2}}}}$$
+
+Pour l'approximation \ref{approx:acte}, on obtient une statistique t de $7.3022$ et une p-valeur de $2.836.10^{-13}$. Pour l'approximation \ref{approx:ambu}, on obtient une statistique t de $3.2395$ et une p-valeur de $0.001198$. L'hypothèse nulle est validée au seuil de 0.1\% pour le second test, la statistique t est plus faible pour ce même test. En terme de distance entre les moyennes, l'approximation \ref{approx:ambu} parait donc plus pertinente.\\
+
+En reprenant les mêmes notations que précédemment, avec $F_X$ la fonction de répartition empirique de $X$. On effectue les tests de  Kolmogorov-Smirnov suivants :
+
+$$\left\{
+    \begin{array}{ll}
+        H_0 : F_{nb\_actes} = F_{nb\_sejsea}\\
+        H_1 : F_{nb\_actes} \ne F_{nb\_sejsea}
+    \end{array} 
+\right.$$
+
+$$\left\{
+    \begin{array}{ll}
+        H_0 : F_{nb\_actes\_ambu} = F_{nb\_sej\_0\_nuit}\\
+        H_1 : F_{nb\_actes\_ambu} \ne F_{nb\_sej\_0\_nuit}
+    \end{array} 
+\right.$$
+
+La statistique K de ce test est donnée par la formule :
+
+$$ K = \underset{x}{sup}\ |F_{X_1}(x) - F_{X_2}(x)| $$
+
+Pour l'approximation \ref{approx:acte}, on obtient une statistique K de $0.011173$ et une p-valeur de $1.127.10^{-9}$. Pour l'approximation \ref{approx:ambu}, on obtient une statistique t de $0.010945$ et une p-valeur de $2.671.10^{-9}$. On a ici des -valeurs très faibles pour les deux tests. Cependant, la statistique de test est plus faible pour le second test (la p-valeur est donc plus élevée), ce qui indique donc que la les distributions des variables sont plus proches dans le cadre de l'approximation \ref{approx:ambu}.\\
+
+Au vu de ces comparaisons et de ces tests, il ressort que les variables \textit{nb\_actes\_ambu} et \textit{nb\_sej\_0\_nuit} sont plus semblables en distribution et en moyenne que \textit{nb\_actes} et \textit{nb\_sejsea}. On va donc choisir d'effectuer l'approximation \ref{approx:ambu} pour les analyses statistiques et économétriques de ce document.
